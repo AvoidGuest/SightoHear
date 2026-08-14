@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.GalleryAlbumDetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:SightoHear"
+    xmlns:models="using:SightoHear.Models"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Background="Transparent"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <!-- ★ 添加图片弹窗项卡片三态颜色：
+                     Light/Dark 各自独立定义，配合 ThemeResource 自动跟随实际主题，
+                     替代原先在代码中基于 ActualTheme 的手动计算（Win11 弹窗中不可靠导致反色）。 -->
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AddItemCardNormalBackgroundBrush" Color="#FFF9F9F9"/>
+                    <SolidColorBrush x:Key="AddItemCardPointerOverBackgroundBrush" Color="#FFE0E0E0"/>
+                    <SolidColorBrush x:Key="AddItemCardPressedBackgroundBrush" Color="#FFCFCFCF"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AddItemCardNormalBackgroundBrush" Color="#FF1F1F1F"/>
+                    <SolidColorBrush x:Key="AddItemCardPointerOverBackgroundBrush" Color="#FF2E2E2E"/>
+                    <SolidColorBrush x:Key="AddItemCardPressedBackgroundBrush" Color="#FF3D3D3D"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <local:FilePathToImageConverter x:Key="CoverConverter" />
+
+            <!-- 添加图片弹窗项模板 -->
+            <DataTemplate x:Key="AddImageItemTemplate" x:DataType="models:AddItemOption">
+                <Border
+                    x:Name="CardRoot"
+                    MinHeight="64"
+                    Padding="10,8"
+                    Background="{ThemeResource AddItemCardNormalBackgroundBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Tag="{x:Bind}"
+                    Tapped="ItemCard_Tapped"
+                    PointerEntered="ItemCard_PointerEntered"
+                    PointerExited="ItemCard_PointerExited"
+                    PointerPressed="ItemCard_PointerPressed"
+                    PointerReleased="ItemCard_PointerReleased">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="36" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border
+                            Width="44"
+                            Height="44"
+                            Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                            CornerRadius="6">
+                            <Grid>
+                                <FontIcon
+                                    FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Glyph="&#xEB9F;" />
+                                <Image
+                                    Source="{x:Bind Item.FilePath, Converter={StaticResource CoverConverter}}"
+                                    Stretch="UniformToFill" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock
+                                FontWeight="SemiBold"
+                                MaxLines="1"
+                                Text="{x:Bind Item.FileNameFull}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                MaxLines="1"
+                                Text="{x:Bind Item.ImageInfoText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+
+                        <CheckBox
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False"
+                            IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+        <Style x:Key="AlbumImageGridViewItemStyle" TargetType="GridViewItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewItem">
+                        <Border x:Name="RootBorder"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Margin="0,0,12,12"
+                                Padding="8"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="CardScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="Transparent"/>
+                                            <Setter Target="RootBorder.BorderBrush" Value="Transparent"/>
+                                            <Setter Target="CardScale.ScaleX" Value="1"/>
+                                            <Setter Target="CardScale.ScaleY" Value="1"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+                                            <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootBorder.Background" Value="{ThemeResource CardBackgroundFillColorSecondaryBrush}"/>
+                                            <Setter Target="RootBorder.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                                            <Setter Target="CardScale.ScaleX" Value="0.985"/>
+                                            <Setter Target="CardScale.ScaleY" Value="0.985"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentTransitions="{TemplateBinding ContentTransitions}"
+                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="ImageCardTemplate" x:DataType="models:MediaItem">
+                <Grid Width="{x:Bind GalleryCardWidth}" Height="{x:Bind GalleryCardHeight}" MinWidth="72"
+                      Tag="{x:Bind}"
+                      CornerRadius="8"
+                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                      BorderThickness="1"
+                      RightTapped="ImageItem_RightTapped">
+                <FontIcon Glyph="&#xE8B9;" FontSize="32"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Image x:Name="ThumbnailImage"
+                       Tag="{x:Bind}"
+                       Loaded="ThumbnailImage_Loaded"
+                       Unloaded="ThumbnailImage_Unloaded"
+                       Stretch="UniformToFill"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"/>
+                <Border x:Name="ImageInfoBar"
+                        Visibility="{x:Bind GalleryInfoVisibility}"
+                        VerticalAlignment="Bottom"
+                        Background="{ThemeResource SystemFillColorSolidNeutralBackgroundBrush}"
+                        Opacity="0.85"
+                        CornerRadius="0,0,8,8"
+                        Padding="8,4">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind FileName}" FontSize="11" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{x:Bind ImageInfoText}" FontSize="10"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   MaxLines="1" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,0" RowSpacing="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 顶部区域：相册信息 -->
+        <Grid Grid.Row="0" ColumnSpacing="24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Border x:Name="CoverBorder" Width="176" Height="176"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <FontIcon x:Name="CoverPlaceholderIcon" FontFamily="{StaticResource SegoeFluentIconsFontFamily}" FontSize="42"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                              Glyph="&#xEB9F;" />
+                    <Image x:Name="CoverImage"
+                           Stretch="UniformToFill"
+                           Visibility="Collapsed" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1" VerticalAlignment="Stretch">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right"
+                            VerticalAlignment="Top" Orientation="Horizontal" Spacing="12"
+                            Margin="0,11,0,0">
+                    <TextBlock x:Name="CreatedTimeText" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock x:Name="ImageCountText" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+
+                <TextBlock x:Name="AlbumNameText" Grid.Row="0" Grid.Column="0"
+                           FontSize="34" FontWeight="SemiBold" MaxLines="1"
+                           TextTrimming="CharacterEllipsis" Margin="-4,0,0,0" />
+
+                <TextBlock x:Name="AlbumDescriptionText" Grid.Row="1" Grid.ColumnSpan="2"
+                           MaxLines="4" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Margin="-1,4,0,0" />
+
+                <Button x:Name="ViewAllButton" Grid.Row="3" Grid.Column="0"
+                        Width="132" Height="38" Padding="20,0"
+                        Click="ViewAllButton_Click" CornerRadius="19">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="12" Glyph="&#xE890;" />
+                        <TextBlock Text="查看全部" />
+                    </StackPanel>
+                </Button>
+
+                <StackPanel Grid.Row="3" Grid.Column="1" HorizontalAlignment="Right"
+                            Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="EditButton" Height="32" Padding="10,0"
+                            Click="EditButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="12" Glyph="&#xE70F;" />
+                            <TextBlock Text="编辑" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="AddImagesButton" Height="32" Padding="10,0"
+                            Click="AddImagesButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="12" Glyph="&#xE710;" />
+                            <TextBlock Text="添加" />
+                        </StackPanel>
+                    </Button>
+                    <ToggleButton x:Name="MultiSelectToggle" Height="32" Padding="8,0"
+                                  Click="MultiSelectToggle_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon FontSize="12" Glyph="&#xEA98;" />
+                            <TextBlock Text="多选" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <AutoSuggestBox x:Name="ImageSearchBox" Width="320" Height="32"
+                                    MinWidth="260" PlaceholderText="搜索图片" QueryIcon="Find"
+                                    TextChanged="ImageSearchBox_TextChanged" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- 底部区域：图片网格 -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- 多选工具栏 -->
+            <Grid x:Name="MultiSelectToolbar" Grid.Row="0"
+                  Margin="24,0,2,8" Padding="12,8" ColumnSpacing="8"
+                  Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox x:Name="SelectAllCheckBox" Grid.Column="0"
+                          VerticalAlignment="Center" Content="全选"
+                          Click="SelectAllCheckBox_Click" />
+                <TextBlock x:Name="SelectedCountText" Grid.Column="1"
+                           VerticalAlignment="Center" Margin="12,0,0,0"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Button x:Name="MultiSelectRemoveButton" Grid.Column="2"
+                        Height="32" Padding="8,0" Click="MultiSelectRemoveButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon FontSize="12" Glyph="&#xE74D;" />
+                        <TextBlock Text="从相册移除" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="MultiSelectViewButton" Grid.Column="3"
+                        Height="32" Padding="8,0" Margin="8,0,0,0"
+                        Click="MultiSelectViewButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon FontSize="12" Glyph="&#xE890;" />
+                        <TextBlock Text="查看选中" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <GridView x:Name="ImageGrid" Grid.Row="2"
+                      Padding="0,0,0,116"
+                      IsItemClickEnabled="True"
+                      ItemClick="ImageGrid_ItemClick"
+                      ItemTemplate="{StaticResource ImageCardTemplate}"
+                      ItemContainerStyle="{StaticResource AlbumImageGridViewItemStyle}"
+                      SelectionMode="None">
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+            </GridView>
+
+            <TextBlock x:Name="EmptyStateText" Grid.Row="2"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Visibility="Collapsed" />
+        </Grid>
+    </Grid>
+</Page>

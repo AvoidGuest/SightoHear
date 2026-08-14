@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.MusicSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    Background="Transparent">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+        <Style x:Key="SettingsSectionHeaderTextBlockStyle"
+               BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+               TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,0,0,6" />
+            </Style.Setters>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer Margin="24,0">
+        <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+            <StackPanel.ChildrenTransitions>
+                <EntranceThemeTransition FromVerticalOffset="50" />
+                <RepositionThemeTransition IsStaggeringEnabled="False" />
+            </StackPanel.ChildrenTransitions>
+
+            <!-- 习惯 -->
+            <TextBlock
+                Text="习惯"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard Header="文件打开习惯" Description="选择在音乐列表中打开文件所需的鼠标操作">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE962;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ComboBox
+                    x:Name="FileOpenModeComboBox"
+                    MinWidth="160"
+                    SelectionChanged="FileOpenModeComboBox_SelectionChanged">
+                    <ComboBoxItem Content="单击左键打开" />
+                    <ComboBoxItem Content="双击左键打开" />
+                </ComboBox>
+            </controls:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

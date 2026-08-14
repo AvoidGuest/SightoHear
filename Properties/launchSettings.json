@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SightoHear (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SightoHear (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SightoHear"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel x:Name="TitlePanel" Grid.Row="0" Orientation="Horizontal" Margin="28,24,0,0">
+            <TextBlock x:Name="PageTitle" Text="设置" FontSize="28" FontWeight="SemiBold" />
+        </StackPanel>
+
+        <StackPanel x:Name="BreadcrumbPanel" Grid.Row="1" Orientation="Horizontal" Margin="28,24,0,0" Spacing="10" Visibility="Collapsed">
+            <HyperlinkButton x:Name="BreadcrumbParent" Padding="0" Background="Transparent" BorderThickness="0" Click="BreadcrumbParent_Click">
+                <TextBlock x:Name="BreadcrumbParentText" Text="设置" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </HyperlinkButton>
+            <FontIcon
+                x:Name="BreadcrumbArrow1"
+                FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                Glyph="&#xE76C;"
+                FontSize="16"
+                Margin="0,4,0,0"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                VerticalAlignment="Center" />
+            <HyperlinkButton
+                x:Name="BreadcrumbMiddle"
+                Padding="0"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="BreadcrumbMiddle_Click"
+                Visibility="Collapsed">
+                <TextBlock x:Name="BreadcrumbMiddleText" Text="视频" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </HyperlinkButton>
+            <FontIcon
+                x:Name="BreadcrumbArrow2"
+                FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                Glyph="&#xE76C;"
+                FontSize="16"
+                Margin="0,4,0,0"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                VerticalAlignment="Center"
+                Visibility="Collapsed" />
+            <TextBlock x:Name="BreadcrumbCurrent" Text="外观" FontSize="28" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <Frame x:Name="SettingsContentFrame" Grid.Row="2" Background="Transparent" />
+    </Grid>
+</Page>

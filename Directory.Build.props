@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <Platform Condition="'$(Platform)' == '' or '$(Platform)' == 'AnyCPU'">x64</Platform>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+
+    <!-- 全新架构：Configuration 统一用标准命名（Debug/Release），不再使用特殊的 DeBug 大小写 -->
+    <OutputConfigurationFolder Condition="'$(Configuration)' == 'Debug'">Debug</OutputConfigurationFolder>
+    <OutputConfigurationFolder Condition="'$(Configuration)' != 'Debug'">$(Configuration)</OutputConfigurationFolder>
+
+    <!-- 平台目录统一为小写架构名（x86/x64/arm64），与 MSIX 包文件名、ProcessorArchitecture 一致 -->
+    <OutputPlatformFolder Condition="'$(Platform)' == 'x86'">x86</OutputPlatformFolder>
+    <OutputPlatformFolder Condition="'$(Platform)' == 'x64'">x64</OutputPlatformFolder>
+    <OutputPlatformFolder Condition="'$(Platform)' == 'ARM64'">arm64</OutputPlatformFolder>
+    <OutputPlatformFolder Condition="'$(OutputPlatformFolder)' == ''">$(Platform)</OutputPlatformFolder>
+
+    <!-- 全新架构：非打包的构建中间产物（exe/dll 等）统一输出到项目根 artifacts\<Config>\<平台>\，
+         不再写入 BIN。BIN 目录被保留为「纯安装包区」，只存放最终 MSIX 安装包（bin\Debug、bin\Release）。 -->
+    <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\</BaseOutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)artifacts\$(OutputConfigurationFolder)\$(OutputPlatformFolder)\</OutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\$(OutputConfigurationFolder)\$(OutputPlatformFolder)\obj\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
+
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**;artifacts\**</DefaultItemExcludes>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+</Project>

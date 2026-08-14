@@ -1,0 +1,896 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="SightoHear.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:SightoHear"
+    xmlns:animatedvisuals="using:Microsoft.UI.Xaml.Controls.AnimatedVisuals"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    mc:Ignorable="d"
+    Title="SightoHear">
+    <Grid x:Name="RootGrid" Background="Transparent">
+        <Grid.Resources>
+            <local:SecondsToTimeConverter x:Key="SecondsToTimeConverter" />
+            <local:FilePathToImageConverter x:Key="MusicCoverConverter" />
+            <FontFamily x:Key="FluentSystemIconsRegularFontFamily">/Assets/Fonts/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular</FontFamily>
+            <FontFamily x:Key="SegoeFluentIconsFontFamily">/Assets/Fonts/Segoe Fluent Icons.ttf#Segoe Fluent Icons</FontFamily>
+
+            <!-- [已弃用] 改用 AppBarButton + AddHandler 方案，详见 LeftButtons 注释 -->
+            <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="48" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="RootGrid"
+                                  Background="{TemplateBinding Background}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualStateGroup.Transitions>
+                                            <VisualTransition To="PointerOver" GeneratedDuration="0:0:0" />
+                                            <VisualTransition To="Pressed" GeneratedDuration="0:0:0" />
+                                            <VisualTransition From="Pressed" To="PointerOver" GeneratedDuration="0:0:0" />
+                                            <VisualTransition From="PointerOver" To="Normal" GeneratedDuration="0:0:0" />
+                                        </VisualStateGroup.Transitions>
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="ContentPresenter.Opacity" Value="0.3" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="ContentPresenter"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  AutomationProperties.AccessibilityView="Raw" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- 标题栏 AppBarButton 自定义模板：直角背景、无内边距、图标完美居中 -->
+            <!-- 保持与 AnimatedIcon 兼容（仅使用背景 setter，无 PointerDownThemeAnimation） -->
+            <Style x:Key="TitleBarAppBarButtonStyle" TargetType="AppBarButton">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="AppBarButton">
+                            <Grid x:Name="RootGrid"
+                                  Background="{TemplateBinding Background}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualStateGroup.Transitions>
+                                            <VisualTransition To="PointerOver" GeneratedDuration="0:0:0" />
+                                            <VisualTransition To="Pressed" GeneratedDuration="0:0:0" />
+                                            <VisualTransition From="Pressed" To="PointerOver" GeneratedDuration="0:0:0" />
+                                            <VisualTransition From="PointerOver" To="Normal" GeneratedDuration="0:0:0" />
+                                        </VisualStateGroup.Transitions>
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource AppBarButtonBackgroundPointerOver}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource AppBarButtonBackgroundPressed}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="ContentPresenter.Opacity" Value="0.3" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="ContentPresenter"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  AutomationProperties.AccessibilityView="Raw" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- NavigationView 紧凑模式下的悬浮面板样式 -->
+            <Style x:Key="CompactSidebarNavigationViewStyle" TargetType="NavigationView">
+                <Setter Property="CompactPaneLength" Value="48" />
+                <Setter Property="OpenPaneLength" Value="280" />
+                <Setter Property="PaneTitle" Value="" />
+            </Style>
+
+            <Style x:Key="MiniPlayerButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Width" Value="36" />
+                <Setter Property="Height" Value="36" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="RootGrid"
+                                  Background="{TemplateBinding Background}"
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="ContentPresenter.Opacity" Value="0.3" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="ContentPresenter"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  AutomationProperties.AccessibilityView="Raw" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <DataTemplate x:Key="QueueItemDefaultTemplate">
+                    <Border Height="56" Padding="12,6"
+                            Background="{ThemeResource QueueCardBackgroundBrush}"
+                            BorderBrush="{ThemeResource QueueCardBorderBrush}"
+                            BorderThickness="1" CornerRadius="4"
+                            PointerEntered="QueueItem_PointerEntered" PointerExited="QueueItem_PointerExited"
+                            PointerPressed="QueueItem_PointerPressed" PointerReleased="QueueItem_PointerReleased"
+                            PointerCanceled="QueueItem_PointerCanceled">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="36"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="36" Height="36"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}" CornerRadius="4">
+                                <Image Source="{Binding CoverDisplayPath, Converter={StaticResource MusicCoverConverter}}" Stretch="UniformToFill"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding ArtistDisplay}" FontSize="11"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+
+                <DataTemplate x:Key="QueueItemNowPlayingTemplate">
+                    <Border Height="56" Padding="12,6"
+                            Background="{ThemeResource QueueCardBackgroundBrush}"
+                            BorderBrush="{ThemeResource QueueCardBorderBrush}"
+                            BorderThickness="1" CornerRadius="4"
+                            PointerEntered="QueueItem_PointerEntered" PointerExited="QueueItem_PointerExited"
+                            PointerPressed="QueueItem_PointerPressed" PointerReleased="QueueItem_PointerReleased"
+                            PointerCanceled="QueueItem_PointerCanceled">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="36"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="36" Height="36"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}" CornerRadius="4">
+                                <Image Source="{Binding CoverDisplayPath, Converter={StaticResource MusicCoverConverter}}" Stretch="UniformToFill"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="正在播放" FontSize="11" Foreground="{ThemeResource SystemAccentColor}"/>
+                                    <TextBlock Text="{Binding ArtistDisplay}" FontSize="11"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <Grid x:Name="QueueEqualizerHost" Grid.Column="2" Width="32" Height="14" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2"/>
+                                    <ColumnDefinition Width="3"/>
+                                    <ColumnDefinition Width="2"/>
+                                    <ColumnDefinition Width="3"/>
+                                    <ColumnDefinition Width="2"/>
+                                    <ColumnDefinition Width="3"/>
+                                    <ColumnDefinition Width="2"/>
+                                    <ColumnDefinition Width="3"/>
+                                    <ColumnDefinition Width="2"/>
+                                </Grid.ColumnDefinitions>
+                                <Rectangle x:Name="QBar1" Width="3" Height="14"
+                                           Fill="{ThemeResource TextFillColorPrimaryBrush}" RadiusX="1" RadiusY="1" VerticalAlignment="Center"/>
+                                <Rectangle x:Name="QBar2" Width="3" Height="14"
+                                           Fill="{ThemeResource TextFillColorPrimaryBrush}" RadiusX="1" RadiusY="1" VerticalAlignment="Center" Grid.Column="2"/>
+                                <Rectangle x:Name="QBar3" Width="3" Height="14"
+                                           Fill="{ThemeResource TextFillColorPrimaryBrush}" RadiusX="1" RadiusY="1" VerticalAlignment="Center" Grid.Column="4"/>
+                                <Rectangle x:Name="QBar4" Width="3" Height="14"
+                                           Fill="{ThemeResource TextFillColorPrimaryBrush}" RadiusX="1" RadiusY="1" VerticalAlignment="Center" Grid.Column="6"/>
+                                <Rectangle x:Name="QBar5" Width="3" Height="14"
+                                           Fill="{ThemeResource TextFillColorPrimaryBrush}" RadiusX="1" RadiusY="1" VerticalAlignment="Center" Grid.Column="8"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+
+        </Grid.Resources>
+
+        <!-- Row 0：自定义标题栏（汉堡 AnimatedIcon、返回 AnimatedIcon、图标、标题） -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="CustomTitleBar" Grid.Row="0" Height="32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />  <!-- 左侧按钮组 -->
+                <ColumnDefinition Width="Auto" />  <!-- 应用图标 -->
+                <ColumnDefinition Width="*" />     <!-- 标题 -->
+            </Grid.ColumnDefinitions>
+
+            <!-- =================================================================================== -->
+            <!-- [已修复] 标题栏按钮：AppBarButton + 自定义模板 + AddHandler                          -->
+            <!-- =================================================================================== -->
+            <!--                                                                                     -->
+            <!-- 问题：Button 会将 PointerPressed/Released 标记为 Handled（以支持 Click 事件），       -->
+            <!-- 导致 XAML 中声明的 PointerPressed/Released 事件收不到左键消息。                      -->
+            <!-- 另外 Button 默认模板的 Pressed VSM 包含 PointerDownThemeAnimation，                   -->
+            <!-- 会产生视觉上的"下压变暗"效果，即使覆盖主题资源也无法消除。                          -->
+            <!--                                                                                     -->
+            <!-- 最终解决方案：                                                                      -->
+            <!-- 1. 改用 AppBarButton（与 AnimatedIcon 兼容，无 PointerDownThemeAnimation）          -->
+            <!-- 2. 使用自定义 Style="TitleBarAppBarButtonStyle" 去除默认模板的圆角/内边距/最小高度  -->
+            <!-- 3. 指针事件通过 AddHandler(..., handledEventsToo: true) 注册                        -->
+            <!--    详见 https://learn.microsoft.com/en-us/windows/apps/design/controls/animated-icon  -->
+            <!-- 4. 覆盖 AppBarButtonBackgroundPointerOver/Pressed 主题资源                           -->
+            <!--                                                                                     -->
+            <!-- 颜色方向（AppBarButton 无 PointerDownThemeAnimation，覆盖直接生效）：                -->
+            <!--   深色模式：悬停 = #18FFFFFF（变亮），按下 = #2AFFFFFF（更亮）                       -->
+            <!--   浅色模式：悬停 = #0C000000（变暗），按下 = #18000000（更暗）                       -->
+            <!-- =================================================================================== -->
+            <Grid x:Name="LeftButtons">
+                <Grid.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.ThemeDictionaries>
+                            <ResourceDictionary x:Key="Light">
+                                <SolidColorBrush x:Key="AppBarButtonBackgroundPointerOver" Color="#0C000000" />
+                                <SolidColorBrush x:Key="AppBarButtonBackgroundPressed" Color="#18000000" />
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="Dark">
+                                <SolidColorBrush x:Key="AppBarButtonBackgroundPointerOver" Color="#18FFFFFF" />
+                                <SolidColorBrush x:Key="AppBarButtonBackgroundPressed" Color="#2AFFFFFF" />
+                            </ResourceDictionary>
+                        </ResourceDictionary.ThemeDictionaries>
+                    </ResourceDictionary>
+                </Grid.Resources>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48" />    <!-- 汉堡菜单 -->
+                    <ColumnDefinition Width="Auto" />  <!-- 返回按钮 -->
+                </Grid.ColumnDefinitions>
+
+                <!-- 汉堡菜单（AppBarButton + AnimatedIcon，直接放 Content 而非 Icon） -->
+                <AppBarButton x:Name="PaneToggleButton"
+                              Style="{StaticResource TitleBarAppBarButtonStyle}"
+                              Width="48" Height="32"
+                              Background="Transparent" BorderThickness="0" Padding="0"
+                              LabelPosition="Collapsed"
+                              PointerEntered="PaneToggleButton_PointerEntered"
+                              PointerExited="PaneToggleButton_PointerExited"
+                              Click="PaneToggleButton_Click">
+                    <AnimatedIcon x:Name="HamburgerAnimatedIcon" Width="16" Height="16">
+                        <AnimatedIcon.Source>
+                            <animatedvisuals:AnimatedGlobalNavigationButtonVisualSource />
+                        </AnimatedIcon.Source>
+                        <AnimatedIcon.FallbackIconSource>
+                            <FontIconSource FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE7C5;" />
+                        </AnimatedIcon.FallbackIconSource>
+                    </AnimatedIcon>
+                </AppBarButton>
+
+                <!-- 返回按钮（AppBarButton + AnimatedIcon） -->
+                <AppBarButton x:Name="TitleBarBackButton"
+                              Style="{StaticResource TitleBarAppBarButtonStyle}"
+                              Grid.Column="1"
+                              Width="48" Height="32"
+                              Background="Transparent" BorderThickness="0" Padding="0"
+                              LabelPosition="Collapsed"
+                              Visibility="Collapsed"
+                              PointerEntered="BackButton_PointerEntered"
+                              PointerExited="BackButton_PointerExited"
+                              Click="TitleBarBackButton_Click">
+                    <AnimatedIcon x:Name="BackButtonAnimatedIcon" Width="16" Height="16">
+                        <AnimatedIcon.Source>
+                            <animatedvisuals:AnimatedBackVisualSource />
+                        </AnimatedIcon.Source>
+                        <AnimatedIcon.FallbackIconSource>
+                            <FontIconSource FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE72B;" />
+                        </AnimatedIcon.FallbackIconSource>
+                    </AnimatedIcon>
+                </AppBarButton>
+            </Grid>
+
+            <!-- 应用图标 -->
+            <ImageIcon Grid.Column="1" Width="16" Height="16"
+                       VerticalAlignment="Center" Margin="6,0,0,0"
+                       Source="/Assets/SightoHear.ico" />
+
+            <!-- 标题文字 -->
+            <TextBlock Grid.Column="2" Text="SightoHear"
+                       VerticalAlignment="Center" FontSize="12"
+                       Margin="8,0,188,0"
+                       TextTrimming="CharacterEllipsis" />
+        </Grid>
+
+        <!-- Row 1：NavigationView -->
+        <NavigationView
+            x:Name="MainNavigationView"
+            Grid.Row="1"
+            AlwaysShowHeader="False"
+            PaneDisplayMode="Left"
+            Background="Transparent"
+            IsSettingsVisible="True"
+            IsPaneToggleButtonVisible="False"
+            IsBackButtonVisible="Collapsed"
+            IsTitleBarAutoPaddingEnabled="False"
+            CompactPaneLength="48"
+            OpenPaneLength="280"
+            Loaded="MainNavigationView_Loaded"
+            SelectionChanged="MainNavigationView_SelectionChanged"
+            BackRequested="MainNavigationView_BackRequested">
+            <NavigationView.MenuItems>
+                <NavigationViewItem
+                    Content="主页"
+                    Tag="HomePage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon
+                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                            Glyph="&#xE80F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
+                    Content="视频"
+                    Tag="VideoPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon
+                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                            Glyph="&#xE8B2;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
+                    Content="音乐"
+                    Tag="MusicPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon
+                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                            Glyph="&#xE8D6;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
+                    Content="图库"
+                    Tag="GalleryPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon
+                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                            Glyph="&#xEB9F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- 分界线：下方用于展示“固定到侧边栏”的快捷方式（无固定项时隐藏） -->
+                <NavigationViewItemSeparator x:Name="ShortcutSeparator" Visibility="Collapsed" />
+            </NavigationView.MenuItems>
+
+            <!-- 回收站按钮（位于设置按钮上方） -->
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="回收站" Tag="RecycleBinPage">
+                    <NavigationViewItem.Icon>
+                        <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE74D;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+            <Grid x:Name="ContentHostGrid">
+                <Border
+                    x:Name="ContentMicaLayer"
+                    Background="Transparent"
+                    IsHitTestVisible="False" />
+                <Frame x:Name="ContentFrame" Background="Transparent">
+                    <Frame.ContentTransitions>
+                        <TransitionCollection>
+                            <NavigationThemeTransition>
+                                <NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                                    <SlideNavigationTransitionInfo Effect="FromRight" />
+                                </NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                            </NavigationThemeTransition>
+                        </TransitionCollection>
+                    </Frame.ContentTransitions>
+                </Frame>
+                <!-- 全局迷你播放器覆盖层：渲染在 NavigationView 上方，底部对齐 -->
+                <Border
+                    x:Name="MiniPlayer"
+                    Height="104"
+                    Margin="36,0,36,18"
+                    Padding="14,8,14,10"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Bottom"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    Translation="0,0,18"
+                    Visibility="Collapsed">
+                    <Border.Shadow>
+                        <ThemeShadow />
+                    </Border.Shadow>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="30" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid
+                            Grid.Row="0"
+                            Height="32"
+                            Margin="8,0,2,0"
+                            VerticalAlignment="Center"
+                            ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                x:Name="MiniPositionText"
+                                Margin="0,-8,8,0"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="00:00"
+                                TextAlignment="Left" />
+                            <Slider
+                                x:Name="PlaybackProgressSlider"
+                                Grid.Column="1"
+                                Margin="0,-6,0,0"
+                                VerticalAlignment="Center"
+                                Minimum="0"
+                                Maximum="1"
+                                ThumbToolTipValueConverter="{StaticResource SecondsToTimeConverter}"
+                                PointerMoved="MiniPlayerProgressSlider_PointerMoved"
+                                PointerExited="MiniPlayerProgressSlider_PointerExited"
+                                ValueChanged="MiniPlayerProgressSlider_ValueChanged">
+                                <Slider.RenderTransform>
+                                    <TranslateTransform Y="-1.0" />
+                                </Slider.RenderTransform>
+                            </Slider>
+                            <TextBlock
+                                x:Name="MiniDurationText"
+                                Grid.Column="2"
+                                Margin="8,-8,0,0"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="00:00"
+                                TextAlignment="Right" />
+                            <Border
+                                x:Name="MiniProgressTimeTip"
+                                Grid.Column="1"
+                                MinWidth="44"
+                                Padding="7,3"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                Background="#CC111111"
+                                CornerRadius="6"
+                                IsHitTestVisible="False"
+                                Opacity="0"
+                                Translation="0,-22,0">
+                                <TextBlock
+                                    x:Name="MiniProgressTimeTipText"
+                                    FontSize="12"
+                                    Foreground="White"
+                                    Text="00:00"
+                                    TextAlignment="Center" />
+                            </Border>
+                        </Grid>
+
+                        <Grid
+                            Grid.Row="1"
+                            Height="56"
+                            VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Grid
+                                Grid.Column="0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="52" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border
+                                    Width="52"
+                                    Height="52"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                    CornerRadius="8"
+                                    PointerEntered="MiniPlayerCover_PointerEntered"
+                                    PointerExited="MiniPlayerCover_PointerExited"
+                                    PointerPressed="MiniPlayerCover_PointerPressed"
+                                    PointerReleased="MiniPlayerCover_PointerReleased"
+                                    Tapped="MiniPlayerCover_Tapped">
+                                    <Grid>
+                                        <FontIcon
+                                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                            FontSize="22"
+                                            Glyph="&#xE8D6;"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <!-- 清晰封面图：悬停时被上层模糊封面覆盖；IsHitTestVisible=False 让点击穿透到封面 Border -->
+                                        <Image
+                                            x:Name="MiniPlayerCover"
+                                            Stretch="UniformToFill"
+                                            IsHitTestVisible="False" />
+                                        <!-- 模糊封面图-悬停档：悬停时淡入覆盖清晰封面（位图由 SkiaSharp 预生成） -->
+                                        <Image
+                                            x:Name="MiniPlayerBlurCover"
+                                            Stretch="UniformToFill"
+                                            Opacity="0"
+                                            IsHitTestVisible="False" />
+                                        <!-- 模糊封面图-按下档：按下时淡入盖住悬停档，实现"更模糊"（Source 固定，仅用 Opacity 切换，避免位图切换闪烁） -->
+                                        <Image
+                                            x:Name="MiniPlayerPressedBlurCover"
+                                            Stretch="UniformToFill"
+                                            Opacity="0"
+                                            IsHitTestVisible="False" />
+                                        <!-- 悬停反馈图标：放大的播放图标，颜色按封面亮度自适应；点击穿透到封面 Border -->
+                                        <FontIcon
+                                            x:Name="MiniPlayerHoverIcon"
+                                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                            FontSize="26"
+                                            Glyph="&#xE70E;"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Opacity="0"
+                                            IsHitTestVisible="False" />
+                                    </Grid>
+                                </Border>
+                                <StackPanel
+                                    Grid.Column="1"
+                                    Width="190"
+                                    VerticalAlignment="Center"
+                                    Spacing="2">
+                                    <TextBlock
+                                        x:Name="MiniPlayerTitle"
+                                        FontWeight="SemiBold"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        x:Name="MiniPlayerArtist"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel
+                                Grid.Column="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                                <Button
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    Click="MiniPlayerPreviousButton_Click"
+                                    ToolTipService.ToolTip="上一首">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE892;" />
+                                </Button>
+                                <Button
+                                    x:Name="PlayPauseButton"
+                                    Width="42"
+                                    Height="42"
+                                    Padding="0"
+                                    CornerRadius="21"
+                                    Click="MiniPlayerPlayPauseButton_Click"
+                                    ToolTipService.ToolTip="播放或暂停">
+                                    <FontIcon
+                                        x:Name="PlayPauseIcon"
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="15"
+                                        Glyph="&#xE768;" />
+                                </Button>
+                                <Button
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    Click="MiniPlayerNextButton_Click"
+                                    ToolTipService.ToolTip="下一首">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE893;" />
+                                </Button>
+                            </StackPanel>
+
+                            <StackPanel
+                                Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="6">
+                                <Button
+                                    x:Name="PlayModeButton"
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    Click="MiniPlayerPlayModeButton_Click">
+                                    <ToolTipService.ToolTip>
+                                        <ToolTip x:Name="PlayModeToolTip" Placement="Top">
+                                            <TextBlock x:Name="PlayModeToolTipText" Text="顺序播放"/>
+                                        </ToolTip>
+                                    </ToolTipService.ToolTip>
+                                    <FontIcon
+                                        x:Name="PlayModeIcon"
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE8AB;" />
+                                </Button>
+                                <Button
+                                    x:Name="QueueButton"
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    ToolTipService.ToolTip="播放队列">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE8FD;" />
+                                </Button>
+                                <Button
+                                    x:Name="VolumeButton"
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    ToolTipService.ToolTip="音量">
+                                    <Button.Flyout>
+                                        <Flyout Placement="Top">
+                                            <Grid Width="230" ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button
+                                                    x:Name="MuteButton"
+                                                    Width="34"
+                                                    Height="34"
+                                                    Padding="0"
+                                                    VerticalAlignment="Center"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Click="MiniPlayerMuteButton_Click"
+                                                    ToolTipService.ToolTip="静音">
+                                                    <FontIcon
+                                                        x:Name="MuteIcon"
+                                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                                        FontSize="13"
+                                                        Glyph="&#xE767;" />
+                                                </Button>
+                                                <Slider
+                                                    x:Name="VolumeSlider"
+                                                    Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    Minimum="0"
+                                                    Maximum="100"
+                                                    ValueChanged="MiniPlayerVolumeSlider_ValueChanged" />
+                                                <TextBlock
+                                                    x:Name="VolumeText"
+                                                    Grid.Column="2"
+                                                    Width="30"
+                                                    VerticalAlignment="Center"
+                                                    Text="80">
+                                                    <TextBlock.RenderTransform>
+                                                        <TranslateTransform Y="-1.6" />
+                                                    </TextBlock.RenderTransform>
+                                                </TextBlock>
+                                            </Grid>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                    <FontIcon
+                                        x:Name="VolumeButtonIcon"
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE767;" />
+                                </Button>
+                                <Button
+                                    x:Name="HideMiniPlayerButton"
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    Click="HideMiniPlayerButton_Click"
+                                    ToolTipService.ToolTip="隐藏播放器">
+                                    <FontIcon
+                                        FontFamily="{StaticResource FluentSystemIconsRegularFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE5F6;" />
+                                </Button>
+                                <Button
+                                    x:Name="MoreButton"
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    Click="MiniPlayerMoreButton_Click"
+                                    ToolTipService.ToolTip="更多">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE712;" />
+                                </Button>
+                                <Button
+                                    x:Name="CloseMiniPlayerButton"
+                                    Style="{StaticResource MiniPlayerButtonStyle}"
+                                    Click="MiniPlayerCloseButton_Click"
+                                    ToolTipService.ToolTip="关闭迷你播放器">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                        FontSize="13"
+                                        Glyph="&#xE711;" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </NavigationView>
+
+        <!-- 全局迷你播放器 MediaPlayerElement（隐藏，仅用于承载音频播放器） -->
+        <MediaPlayerElement
+            x:Name="MiniPlayerHost"
+            Grid.Row="1"
+            AreTransportControlsEnabled="False"
+            Visibility="Collapsed" />
+
+            <!-- 胶囊按钮（Popup 层，永远在最顶层） -->
+            <Grid x:Name="CapsuleSection" Grid.Row="1">
+                <Popup x:Name="CapsulePopup" IsOpen="False">
+                <Border
+                    x:Name="MiniPlayerRestoreButton"
+                    Width="54"
+                    Height="40"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="20,0,0,20"
+                    Translation="0,0,30"
+                    Tapped="MiniPlayerRestoreButton_Tapped"
+                    PointerEntered="MiniPlayerRestoreButton_PointerEntered"
+                    PointerExited="MiniPlayerRestoreButton_PointerExited"
+                    PointerPressed="MiniPlayerRestoreButton_PointerPressed"
+                    PointerMoved="MiniPlayerRestoreButton_PointerMoved"
+                    PointerReleased="MiniPlayerRestoreButton_PointerReleased"
+                    PointerCanceled="MiniPlayerRestoreButton_PointerCanceled">
+                    <Border.Shadow>
+                        <ThemeShadow />
+                    </Border.Shadow>
+                    <Grid Width="24" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2" />
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="2" />
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="2" />
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="2" />
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="2" />
+                        </Grid.ColumnDefinitions>
+                        <Rectangle x:Name="Bar1" Width="2" Height="10"
+                                   Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                   RadiusX="1" RadiusY="1"
+                                   VerticalAlignment="Center" />
+                        <Rectangle x:Name="Bar2" Width="2" Height="10"
+                                   Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                   RadiusX="1" RadiusY="1"
+                                   VerticalAlignment="Center"
+                                   Grid.Column="2" />
+                        <Rectangle x:Name="Bar3" Width="2" Height="10"
+                                   Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                   RadiusX="1" RadiusY="1"
+                                   VerticalAlignment="Center"
+                                   Grid.Column="4" />
+                        <Rectangle x:Name="Bar4" Width="2" Height="10"
+                                   Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                   RadiusX="1" RadiusY="1"
+                                   VerticalAlignment="Center"
+                                   Grid.Column="6" />
+                        <Rectangle x:Name="Bar5" Width="2" Height="10"
+                                   Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                   RadiusX="1" RadiusY="1"
+                                   VerticalAlignment="Center"
+                                   Grid.Column="8" />
+                    </Grid>
+                </Border>
+                </Popup>
+            </Grid>
+
+        <!-- 播放器覆盖层（Z-order 中等，覆盖整个客户区）
+             用于以覆盖层方式承载全屏播放器/视频播放器/图片查看器。
+             注意：SplashOverlay 定义在此之后，启动时 Splash 会覆盖在播放器之上，
+             实现 Splash → 播放器的无缝过渡。 -->
+        <Grid x:Name="PlayerOverlay" Grid.RowSpan="2" Visibility="Collapsed"
+              Background="#FF0D0B10"
+              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+              IsHitTestVisible="True">
+            <Frame x:Name="PlayerFrame" Navigating="PlayerFrame_Navigating"/>
+        </Grid>
+
+        <!-- Splash 遮罩层（Z-order 最高，覆盖整个客户区包括标题栏区域和播放器覆盖层）
+             启动时在 Splash 背后准备好播放器，Splash 渐隐后自然露出播放器。 -->
+        <Grid x:Name="SplashOverlay" Grid.RowSpan="2" Visibility="Visible"
+              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+              SizeChanged="SplashOverlay_SizeChanged">
+            <Image x:Name="SplashLogo" Source="/Assets/SightoHear.png"
+                   Width="154" Height="154" Stretch="Uniform"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- Win2D 性能监测悬浮窗（HUD）：黑色简洁、单列多行，仅窗口内部显示（左上角）。
+             内容由 MainWindow 代码动态构建；支持鼠标按住拖动（通过 RenderTransform 偏移，不触发布局）。 -->
+        <Border
+            x:Name="Win2DHud"
+            Grid.RowSpan="2"
+            Canvas.ZIndex="1000"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Margin="12,44,0,0"
+            Padding="12,8"
+            Background="#E6000000"
+            BorderBrush="#66FFFFFF"
+            BorderThickness="1"
+            CornerRadius="6"
+            Visibility="Collapsed"
+            PointerPressed="Win2DHud_PointerPressed"
+            PointerMoved="Win2DHud_PointerMoved"
+            PointerReleased="Win2DHud_PointerReleased"
+            PointerCanceled="Win2DHud_PointerCanceled"
+            PointerCaptureLost="Win2DHud_PointerCaptureLost">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="Win2DHudTransform" />
+            </Border.RenderTransform>
+            <StackPanel x:Name="Win2DHudContent" Spacing="3">
+                <TextBlock
+                    Text="当前不是 Win2D 界面"
+                    FontFamily="Consolas"
+                    FontSize="12"
+                    Foreground="White" />
+            </StackPanel>
+        </Border>
+
+        </Grid>
+    </Window>

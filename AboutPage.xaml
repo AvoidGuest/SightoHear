@@ -1,0 +1,526 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,0,24,0">
+        <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+            <StackPanel.ChildrenTransitions>
+                <RepositionThemeTransition IsStaggeringEnabled="False" />
+            </StackPanel.ChildrenTransitions>
+            <!-- 顶部应用信息大卡片 -->
+            <Border
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="32"
+                HorizontalAlignment="Stretch">
+                <StackPanel HorizontalAlignment="Center" Spacing="8">
+                    <!-- 应用图标 -->
+                    <Image
+                        Source="Assets/SightoHear.png"
+                        Width="80"
+                        Height="80"
+                        HorizontalAlignment="Center" />
+                    <!-- 应用名称 -->
+                    <TextBlock
+                        Text="SightoHear"
+                        FontSize="24"
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Center"
+                        Margin="0,8,0,0" />
+                    <!-- 副标题 -->
+                    <TextBlock
+                        Text="统合 Windows 的媒体增强体验！"
+                        FontSize="14"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        HorizontalAlignment="Center"
+                        Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+
+            <!-- 当前版本卡片 -->
+            <controls:SettingsCard
+                x:Name="VersionCard"
+                Header="当前版本"
+                Description="v0.3.2-beta (0320)"
+                HeaderIcon="{ui:FontIcon Glyph=&#xE946;}">
+                <Button x:Name="CheckUpdateButton"
+                        Click="CheckUpdateButton_Click">
+                    <TextBlock Text="检查更新" />
+                </Button>
+            </controls:SettingsCard>
+
+            <!-- 开发者卡片（可展开） -->
+            <controls:SettingsExpander
+                Header="开发者"
+                Description="本项目的开发者信息"
+                HeaderIcon="{ui:FontIcon Glyph=&#xE77B;}"
+                IsExpanded="False">
+                <controls:SettingsExpander.Items>
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <Image
+                                Source="Assets/AvoidGuest.jpg"
+                                Width="48"
+                                Height="48" />
+                            <StackPanel VerticalAlignment="Center" Spacing="4">
+                                <TextBlock Text="AvoidGuest" FontWeight="SemiBold" FontSize="16"/>
+                                <TextBlock Text="SightoHear 开发者" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- 开源致谢卡片（可展开） -->
+            <controls:SettingsExpander
+                Header="开源致谢"
+                Description="感谢所有无私奉献的开源项目，没有它们就没有如今的软件"
+                HeaderIcon="{ui:FontIcon Glyph=&#xE8E1;}"
+                IsExpanded="False">
+                <controls:SettingsExpander.Items>
+                    <!-- FFmpegInteropX / FFmpeg 项目卡片（普通模式音视频解码内核） -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="F"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="FFmpegInteropX / FFmpeg" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="普通模式（MediaPlayerElement）音视频解码内核，本软件音乐/视频播放、缩略图抽帧与封面提取均依赖其 FFmpeg 解码能力。.NET 封装：" />
+                                    <Hyperlink NavigateUri="https://github.com/ffmpeginteropx/FFmpegInteropX">github.com/ffmpeginteropx/FFmpegInteropX</Hyperlink>
+                                    <Run Text="（Apache-2.0）；底层解码库：" />
+                                    <Hyperlink NavigateUri="https://ffmpeg.org/">ffmpeg.org</Hyperlink>
+                                    <Run Text="（LGPL-2.1+）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- ===== 超分模式（libmpv 播放内核）引入的开源项目 ===== -->
+
+                    <!-- libmpv 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="M"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="libmpv（mpv）" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="视频播放内核（v0.41），提供 OpenGL 渲染 API 与内置 FFmpeg 解码，是本软件超分模式的核心；Windows 原生库经官方 NuGet 包分发（Endpne.LibMPV.Windows）。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/mpv-player/mpv">github.com/mpv-player/mpv</Hyperlink>
+                                    <Run Text="（LGPL-2.1+）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- Anime4K 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="A"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="Anime4K" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="高质量实时动画超分/降噪算法，本软件超分模式的 Anime4K shader 链即来源于此。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/bloc97/Anime4K">github.com/bloc97/Anime4K</Hyperlink>
+                                    <Run Text="（MIT）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- OpenTK 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="O"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="OpenTK" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="跨平台 OpenGL 绑定库，负责 GL 上下文创建与渲染调用，支撑 libmpv 的桌面 OpenGL 渲染路径。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/opentk/opentk">github.com/opentk/opentk</Hyperlink>
+                                    <Run Text="（MIT）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- Silk.NET 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="S"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="Silk.NET" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text=".NET 高性能原生绑定库（Direct3D11 / DXGI / OpenGL），实现 OpenGL 与 D3D11 交换链的纹理共享互操作。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/dotnet/Silk.NET">github.com/dotnet/Silk.NET</Hyperlink>
+                                    <Run Text="（MIT）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- Bili.Copilot 项目卡片（mpv 封装移植参考） -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="B"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="Bili.Copilot（哔哩助理）" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="本软件超分模式的 mpv .NET 客户端封装与播放器逻辑（mpv-kernel）移植参考项目。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/Richasy/Bili.Copilot">github.com/Richasy/Bili.Copilot</Hyperlink>
+                                    <Run Text="（GPL-3.0）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- BetterLyrics 项目卡片（真实 Logo 放 Content 区域，避免 HeaderIcon 尺寸限制与 Items 类型限制） -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <!-- 左：真实 Logo -->
+                                <ColumnDefinition Width="Auto" />
+                                <!-- 右：标题 + 短描述 -->
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <!-- 左侧真实 Logo -->
+                            <Image
+                                Source="Assets/BetterLyricsLogo.png"
+                                Width="48"
+                                Height="48"
+                                VerticalAlignment="Center" />
+                            <!-- 右侧：标题在上，短描述在下（内嵌可点击链接） -->
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="BetterLyrics" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="歌词解析、同步与渲染的参考实现，本软件的逐字歌词（LRC / QRC / KRC / YRC / TTML）解析与渲染管线即参考其成熟方案构建。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/jayfunc/BetterLyrics">github.com/jayfunc/BetterLyrics</Hyperlink>
+                                    <Run Text="（GPL-3.0）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+                    <!-- ===== 运动补偿（补帧，VapourSynth / MVTools）引入的开源项目 ===== -->
+
+                    <!-- VapourSynth 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="V"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="VapourSynth" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="视频帧服务器与处理框架，本软件运动补偿（补帧）脚本的运行环境，随便携式 VSScript / Python 运行时一起分发。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/vapoursynth/vapoursynth">github.com/vapoursynth/vapoursynth</Hyperlink>
+                                    <Run Text="（LGPL-2.1）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- MVTools 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="M"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="MVTools" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="运动估计与补帧算法插件（libmvtools.dll），MVT 档补帧（MVT_LQ / MVT_STD）的核心算法库。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/dubhater/vapoursynth-mvtools">github.com/dubhater/vapoursynth-mvtools</Hyperlink>
+                                    <Run Text="（GPL-2.0）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- FFTW 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="F"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="FFTW" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="快速傅里叶变换库（libfftw3f-3.dll），补帧光流算法的数学运算基础。项目：" />
+                                    <Hyperlink NavigateUri="https://www.fftw.org/">fftw.org</Hyperlink>
+                                    <Run Text="（GPL-2.0+）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+
+                    <!-- K7sfunc 项目卡片 -->
+                    <controls:SettingsCard ContentAlignment="Left"
+                                           HorizontalContentAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="48"
+                                Height="48"
+                                CornerRadius="6"
+                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                VerticalAlignment="Center">
+                                <TextBlock Text="K"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="K7sfunc" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="Wrap">
+                                    <Run Text="VapourSynth 视频处理函数库，本软件 MEMC 补帧脚本（k7sfunc.py 及 MEMC_*.vpy）即来源于此。项目：" />
+                                    <Hyperlink NavigateUri="https://github.com/hooke007/K7sfunc">github.com/hooke007/K7sfunc</Hyperlink>
+                                    <Run Text="（GPL-3.0）" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- GitHub源码卡片 -->
+            <controls:SettingsCard
+                Header="GitHub源码"
+                HeaderIcon="{ui:FontIcon Glyph=&#xE774;}">
+                <HyperlinkButton Content="github.com/AvoidGuest/SightoHear"
+                                 NavigateUri="https://github.com/AvoidGuest/SightoHear" />
+            </controls:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,63 @@
+# ============================================================
+#  SightoHear  -  Git 忽略规则
+#  WinUI 3 / Windows App SDK（.NET 8）桌面应用
+# ============================================================
+
+# ---------------- 构建产物 ----------------
+[Bb]in/
+[Oo]bj/
+artifacts/
+[Ll]og/
+[Ll]ogs/
+
+# MSBuild 预处理产物（每次构建自动生成，勿手动修改）
+preprocessed.csproj
+
+# ---------------- Visual Studio ----------------
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# ---------------- .NET ----------------
+*.pdb
+*.dbmdl
+
+# NuGet 包缓存（本项目使用 PackageReference，通常无 packages 目录，预防性忽略）
+packages/
+*.nupkg
+*.snupkg
+
+# ---------------- 代码签名证书（敏感，禁止提交） ----------------
+*.pfx
+*.cer
+*.crt
+*.snk
+*.pem
+*.p12
+*.key
+cert-password.txt
+
+# ---------------- MSIX 发布产物 ----------------
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.appxupload
+
+# ---------------- 运行时产物 ----------------
+*.log
+*.dmp
+*.etl
+Crashes/
+
+# ---------------- 本地 AI 工具配置 ----------------
+.opencode/
+
+# ---------------- 其他 ----------------
+*.tmp
+*.bak
+Thumbs.db
+.DS_Store

@@ -1,0 +1,230 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>SightoHear</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\SightoHear.ico</ApplicationIcon>
+    <Platform>x64</Platform>
+    <Platforms>x64;x86;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'x86'">win-x86</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
+    <UseWinUI>true</UseWinUI>
+    <UseWinUI3>true</UseWinUI3>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <!-- 启用 VS 单项目 MSIX 打包工具链（对应 Package.appxmanifest）。
+         配合 WindowsPackageType=MSIX 时，构建流程会自动：
+           · 由 Package.appxmanifest 生成 AppxManifest.xml（替换 $targetnametoken$ 等占位符）
+           · 注入框架依赖 PackageDependency（Microsoft.WindowsAppRuntime.2）
+           · 用 makepri 生成 resources.pri
+           · 按框架依赖排除 WinUI 运行时 DLL
+         该开关不影响 unpackaged（WindowsPackageType=None）的日常构建。 -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <SelfContained>true</SelfContained>
+    <!-- ★ 根因修复：MSIX 打包必须用框架依赖（framework-dependent）部署，而非自包含。
+         Windows App SDK 自包含（WindowsAppSDKSelfContained=true）仅支持 unpackaged（非打包）应用；
+         打包成 MSIX 后运行时 DLL（Microsoft.UI.Xaml.dll 等）随包分发，在 packaged 激活环境下
+         于托管入口（Main）之前 fail-fast 静默退出（激活成功但进程瞬间消失，无日志/无崩溃转储），
+         详见 microsoft/WindowsAppSDK#2216。
+         框架依赖模式下：
+           · 运行时 DLL 不再复制到输出目录（构建时自动排除），
+           · 通过 Package.appxmanifest 的 <PackageDependency Name="Microsoft.WindowsAppRuntime.2"/> 声明，
+           · 由系统框架包（Windows App Runtime 2.x，本机已装 2.3.1）提供运行时，
+           · 启动时经 Bootstrap auto-initializer（模块初始化器）在 Main 之前自动 MddBootstrapInitialize 加载。
+         注意：SelfContained=true（.NET 自包含，CoreCLR 随包分发）与 WinUI 框架依赖互不冲突，保持不变。 -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <!-- ★ 根因修复（MSIX 正式安装崩溃）：禁用 DeploymentManager auto-initializer。
+         Windows App SDK 1.8+ 默认启用 DeploymentManager auto-initializer，它在 Main 之前的
+         模块初始化器中调用 DeploymentManager.Initialize，用于加载 Main/Singleton 包（推送通知、
+         AppNotificationManager 等功能）。本应用不使用这些功能，但该初始化器在 Windows 10 上
+         尝试激活 DeploymentInitializeOptions 类失败（0x80040154 REGDB_E_CLASSNOTREG），
+         导致进程在模块初始化器阶段崩溃（e0434352，Main 永不执行）。
+         详见 microsoft/WindowsAppSDK#3137、#6117。禁用后由 Framework 包的 PackageDependency
+         声明正常加载运行时，不影响 WinUI 3 / AppLifecycle / MRT Core 等核心功能。 -->
+    <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
+    <!-- 使用自定义 Program.Main（App.xaml.cs 中定义）替代 XAML 生成的 Main，
+         便于打包启动诊断与异常捕获（配合 DISABLE_XAML_GENERATED_MAIN）。
+         注意：框架依赖模式依赖 Bootstrap auto-initializer，因此【不能】再设
+         WindowsAppSdkBootstrapInitialize=false（那会禁用自动初始化，导致框架包运行时无法加载）。 -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <WindowsXamlAot>false</WindowsXamlAot>
+    <WindowsXamlLocalAssembly>SightoHear</WindowsXamlLocalAssembly>
+    <NoWarn>CA1416</NoWarn>
+    <!-- 本机未安装 Windows SDK，cswinrt 无法从注册表定位 SDK 元数据；
+         显式指向 NuGet 缓存中 Microsoft.Windows.SDK.NET.Ref 10.0.26100.57 的 winmd 目录，
+         供 FFmpegInteropX 2.1.0 的 CsWinRT 投影生成使用。 -->
+    <CsWinRTWindowsMetadata>$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.26100.57\winmd</CsWinRTWindowsMetadata>
+  </PropertyGroup>
+
+  <!-- ==================== 版本号（单一事实来源） ====================
+       升级版本时只需修改此处的 <Version>，程序集/文件版本、关于页显示、
+       MSIX 包版本（Package.appxmanifest 需手动同步 Identity.Version）随之联动。
+       - 测试阶段：0.3.0-beta（MSIX 四段版本 0.3.0.0）
+       - 正式版：1.0.0（MSIX 四段版本 1.0.0.0）
+       MSIX 注意：同一应用只能升不能降，测试期每次打包必须递增版本号。
+       AssemblyVersion/FileVersion 必须是纯数字四段（a.b.c.d，0~65535）。 -->
+  <PropertyGroup>
+    <Version>0.3.2-beta</Version>
+    <AssemblyVersion>0.3.2.0</AssemblyVersion>
+    <FileVersion>0.3.2.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\LockScreenLogo.scale-200.png" />
+    <Content Include="Assets\Square150x150Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.scale-200.png" />
+    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+    <Content Include="Assets\StoreLogo.png" />
+    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <!-- 图标字体（Fluent System Icons / Segoe Fluent Icons / Font Awesome）：
+         必须设置 CopyToOutputDirectory，否则 dotnet build 输出目录不包含字体文件，
+         build-msix.ps1 打包 MSIX 时漏掉字体，运行时 ms-appx:///Assets/Fonts/* 解析失败，
+         图标（FontIcon 字形）显示为方框/括号。 -->
+    <Content Include="Assets\Fonts\*.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Fonts\*.otf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\SightoHear.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\SightoHear.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <!-- 关于页开发者头像与开源致谢图标（AboutPage.xaml 以 Assets/xxx 相对路径引用，
+         需复制到输出目录，否则 MSIX 打包后图片缺失） -->
+    <Content Include="Assets\AvoidGuest.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\BetterLyricsLogo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <!-- Anime4K 超分 shader（超分模式 libmpv 直接加载，原样分发） -->
+    <Content Include="Assets\Anime4K\*.glsl">
+      <Link>Assets\Anime4K\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <!-- 运动补偿（MVTools/SVPFlow）VapourSynth 脚本（超分模式 libmpv 通过 vf vapoursynth 滤镜加载） -->
+    <Content Include="Assets\Mpv\VS\*.vpy">
+      <Link>Assets\Mpv\VS\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <!-- VapourSynth 运行时由 CopyVapourSynthRuntime Target 复制到输出根目录，
+         排除默认 Content 避免被 WinUI 资源系统（PRI）扫描（vapoursynth.cp312-win_amd64.pyd
+         等文件名被误解析为资源限定符触发 PRI249 警告，且 Target 复制与其复制路径冲突） -->
+    <Content Remove="Assets\Mpv\VapourSynth\**" />
+    <None Remove="Assets\Mpv\VapourSynth\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.ColorPicker" Version="8.2.251219" />
+    <PackageReference Include="CommunityToolkit.WinUI.UI.Controls" Version="7.1.2" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+    <PackageReference Include="ComputeSharp" Version="3.2.0" />
+    <PackageReference Include="ComputeSharp.D2D1" Version="3.2.0" />
+    <PackageReference Include="FFmpegInteropX" Version="2.1.0.81200" />
+    <PackageReference Include="Lyricify.Lyrics.Helper" Version="0.1.4" />
+    <PackageReference Include="ComputeSharp.D2D1.WinUI" Version="3.2.0" />
+    <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1721" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
+    <PackageReference Include="Microsoft.VCRTForwarders.140" Version="1.1.0" ExcludeAssets="all" />
+    <PackageReference Include="SkiaSharp" Version="3.116.1" />
+    <PackageReference Include="Serilog" Version="4.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageReference Include="SkiaSharp.Views.WinUI" Version="3.116.1" />
+    <!-- libmpv 视频播放内核（超分模式）：OpenGL 渲染 + D3D11 互操作 -->
+    <PackageReference Include="OpenTK" Version="4.8.2" />
+    <PackageReference Include="Silk.NET.Direct3D11" Version="2.21.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.21.0" />
+    <PackageReference Include="Endpne.LibMPV.Windows" Version="0.41.0" />
+    <!-- 崩溃日志增强：读取 Windows 事件日志（EventLogQuery/EventLogReader）用于启动时崩溃自检 -->
+    <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'x64' or '$(Platform)' == 'ARM64'">
+    <!-- FFmpegInteropX v2.1.0 的 targets 已自动复制 FFmpegInteropX.dll 与 FFmpeg 原生库（ReferenceCopyLocalPaths），无需手动 Content。
+         仅保留 VCRTForwarders（旧版 FFmpeg 运行库兼容）。 -->
+    <Content Include="$(NuGetPackageRoot)microsoft.vcrtforwarders.140\1.1.0\runtimes\win-$(Platform)\native\release\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- libmpv 原生库：Endpne.LibMPV.Windows 的 targets 只复制 .lib 而漏掉 libmpv-2.dll，这里显式复制（按平台） -->
+  <ItemGroup Condition="'$(Platform)' == 'x64'">
+    <Content Include="$(NuGetPackageRoot)endpne.libmpv.windows\0.41.0\build\x64\libmpv-2.dll">
+      <Link>libmpv\win-x64\libmpv-2.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup Condition="'$(Platform)' == 'ARM64'">
+    <Content Include="$(NuGetPackageRoot)endpne.libmpv.windows\0.41.0\build\arm64\libmpv-2.dll">
+      <Link>libmpv\win-arm64\libmpv-2.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Publish Properties -->
+  <PropertyGroup>
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <PublishTrimmed>False</PublishTrimmed>
+  </PropertyGroup>
+
+  <!-- 关键修复：SkiaSharp.NativeAssets.WinUI 传递引入的 ANGLE（libEGL.dll + libGLESv2.dll，OpenGL ES 实现）
+       会与 libmpv 的桌面 OpenGL 渲染上下文冲突，导致超分模式 mpv_render_context_create 阶段
+       AccessViolationException 崩溃（0xC0000005，经 Demo 判别实验确认根因）。
+       本项目 SkiaSharp 仅用于 CPU 光栅化（封面/缩略图/裁剪），不使用 SKXamlCanvas GL 表面，
+       ANGLE 纯冗余，故从输出中移除；SkiaSharp.Views.WinUI.Native.* 为 WinUI 绑定核心，必须保留。 -->
+  <Target Name="RemoveSkiaSharpAngleNativeLibs" AfterTargets="Build;Publish">
+    <ItemGroup>
+      <_AngleNativeDlls Include="$(TargetDir)libEGL.dll;$(TargetDir)libGLESv2.dll" />
+    </ItemGroup>
+    <Delete Files="@(_AngleNativeDlls)" />
+  </Target>
+
+  <!-- x86 平台不支持 libmpv（Endpne.LibMPV.Windows 仅提供 x64/ARM64 dll）：
+       构建时给出警告；运行时由 VideoSettingsPage / VideoPlayerPage / App 启动逻辑兜底回退普通模式 -->
+  <Target Name="WarnMpvUnsupportedOnX86" BeforeTargets="Build" Condition="'$(Platform)' == 'x86'">
+    <Warning Text="x86（32 位）平台不支持 libmpv 超分模式：本次构建将自动使用普通模式。超分模式（Anime4K 实时超分）仅支持 x64/ARM64。" />
+  </Target>
+
+  <!-- 运动补偿（MVTools/SVPFlow）VapourSynth 便携式运行时复制：
+       布局要求（见 VapourSynth vscore.cpp isPortableInit）：
+         · VSScript.dll / python312.dll / _pth / _ctypes.pyd 等必须与 exe 同级（DLL 搜索路径）
+         · portable.vs 标记便携模式，其目录下的 vs-coreplugins/ 与 vs-plugins/ 为插件加载路径
+         · Lib\site-packages\ 下 vapoursynth.dll（vapoursynth.dll 向上 2 级查找 portable.vs）
+       因此整个 Assets\Mpv\VapourSynth 目录按原样复制到输出根目录（与 SightoHear.exe 同级）。
+       仅 x64 平台复制：VapourSynth 便携运行时与 MVTools/SVPFlow 插件均为 x64 二进制，
+       ARM64 平台（进程原生 ARM64）无法加载，运行时由代码层禁用运动补偿。 -->
+  <Target Name="CopyVapourSynthRuntime" AfterTargets="Build;Publish" Condition="'$(Platform)' == 'x64'">
+    <ItemGroup>
+      <_VsRuntimeFiles Include="Assets\Mpv\VapourSynth\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_VsRuntimeFiles)"
+          DestinationFiles="@(_VsRuntimeFiles->'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

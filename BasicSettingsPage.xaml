@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.BasicSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SightoHear"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    Background="Transparent">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+        <Style x:Key="SettingsSectionHeaderTextBlockStyle"
+               BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+               TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,0,0,6" />
+            </Style.Setters>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer Margin="24,0">
+        <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+            <StackPanel.ChildrenTransitions>
+                <EntranceThemeTransition FromVerticalOffset="50" />
+                <RepositionThemeTransition IsStaggeringEnabled="False" />
+            </StackPanel.ChildrenTransitions>
+
+            <!-- 数据库 -->
+            <TextBlock
+                Text="数据库"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- ==================== 视频库 ==================== -->
+            <controls:SettingsExpander
+                Header="视频库"
+                Description="管理要扫描的视频文件夹"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B2;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <Button x:Name="AddVideoFolderButton" Click="AddVideoFolderButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE710;" FontSize="12" />
+                        <TextBlock Text="添加文件夹" />
+                    </StackPanel>
+                </Button>
+                <controls:SettingsExpander.Items>
+                    <!-- 文件夹列表项 -->
+                    <controls:SettingsCard Header="文件夹列表">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{x:Bind VideoPaths}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2" Padding="0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock
+                                                Text="{Binding}"
+                                                VerticalAlignment="Center"
+                                                TextTrimming="CharacterEllipsis" />
+                                            <Button
+                                                Grid.Column="1"
+                                                Tag="{Binding}"
+                                                Padding="8"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Click="RemoveVideoPathButton_Click">
+                                                <FontIcon
+                                                    FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                                    Glyph="&#xE711;"
+                                                    FontSize="14"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 手动扫描 -->
+                    <controls:SettingsCard Header="手动扫描" Description="立即扫描该文件夹中的所有内容">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE72C;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock
+                                x:Name="VideoStatusText"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Button Content="扫描" Click="ScanVideoButton_Click" />
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 扫描子文件夹 -->
+                    <controls:SettingsCard Header="扫描子文件夹" Description="同时扫描所有子目录中的媒体文件">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="VideoRecursiveToggle"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            IsOn="True"
+                            Toggled="LibrarySetting_Toggled" />
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- ==================== 音乐库 ==================== -->
+            <controls:SettingsExpander
+                Header="音乐库"
+                Description="管理要扫描的音乐文件夹"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8D6;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <Button x:Name="AddMusicFolderButton" Click="AddMusicFolderButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE710;" FontSize="12" />
+                        <TextBlock Text="添加文件夹" />
+                    </StackPanel>
+                </Button>
+                <controls:SettingsExpander.Items>
+                    <!-- 文件夹列表项 -->
+                    <controls:SettingsCard Header="文件夹列表">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{x:Bind MusicPaths}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2" Padding="0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock
+                                                Text="{Binding}"
+                                                VerticalAlignment="Center"
+                                                TextTrimming="CharacterEllipsis" />
+                                            <Button
+                                                Grid.Column="1"
+                                                Tag="{Binding}"
+                                                Padding="8"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Click="RemoveMusicPathButton_Click">
+                                                <FontIcon
+                                                    FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                                    Glyph="&#xE711;"
+                                                    FontSize="14"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 手动扫描 -->
+                    <controls:SettingsCard Header="手动扫描" Description="立即扫描该文件夹中的所有内容">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE72C;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock
+                                x:Name="MusicStatusText"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Button Content="扫描" Click="ScanMusicButton_Click" />
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 扫描子文件夹 -->
+                    <controls:SettingsCard Header="扫描子文件夹" Description="同时扫描所有子目录中的媒体文件">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="MusicRecursiveToggle"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            IsOn="True"
+                            Toggled="LibrarySetting_Toggled" />
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- ==================== 图库 ==================== -->
+            <controls:SettingsExpander
+                Header="图库"
+                Description="管理要扫描的图片文件夹"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEB9F;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <Button x:Name="AddImageFolderButton" Click="AddImageFolderButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE710;" FontSize="12" />
+                        <TextBlock Text="添加文件夹" />
+                    </StackPanel>
+                </Button>
+                <controls:SettingsExpander.Items>
+                    <!-- 文件夹列表项 -->
+                    <controls:SettingsCard Header="文件夹列表">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{x:Bind ImagePaths}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2" Padding="0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock
+                                                Text="{Binding}"
+                                                VerticalAlignment="Center"
+                                                TextTrimming="CharacterEllipsis" />
+                                            <Button
+                                                Grid.Column="1"
+                                                Tag="{Binding}"
+                                                Padding="8"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Click="RemoveImagePathButton_Click">
+                                                <FontIcon
+                                                    FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                                    Glyph="&#xE711;"
+                                                    FontSize="14"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 手动扫描 -->
+                    <controls:SettingsCard Header="手动扫描" Description="立即扫描该文件夹中的所有内容">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE72C;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock
+                                x:Name="ImageStatusText"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Button Content="扫描" Click="ScanImageButton_Click" />
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 扫描子文件夹 -->
+                    <controls:SettingsCard Header="扫描子文件夹" Description="同时扫描所有子目录中的媒体文件">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ImageRecursiveToggle"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            IsOn="True"
+                            Toggled="LibrarySetting_Toggled" />
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- 文件操作 -->
+            <TextBlock
+                Text="文件操作"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- ==================== 删除文件时移入回收站 ==================== -->
+            <controls:SettingsCard
+                Header="删除文件时移入回收站"
+                Description="开启后，删除音乐、视频或图片文件时先移入回收站，误删也能找回来；关闭则直接永久删除">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE74D;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="DeleteToRecycleBinToggle"
+                    Tag="DeleteToRecycleBin"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="True"
+                    Toggled="RememberSetting_Toggled" />
+            </controls:SettingsCard>
+
+            <!-- 启动与记忆 -->
+            <TextBlock
+                Text="启动与记忆"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- ==================== 启动时刷新页面 ==================== -->
+            <controls:SettingsExpander
+                Header="启动时刷新页面"
+                Description="每次启动软件时自动重新扫描媒体库，让内容保持最新"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE72C;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <controls:SettingsExpander.Items>
+                    <controls:SettingsCard Header="音乐" Description="启动时自动刷新音乐库">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8D6;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="MusicRefreshOnStartupToggle"
+                            Tag="MusicRefreshOnStartup"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+
+                    <controls:SettingsCard Header="视频" Description="启动时自动刷新视频库">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B2;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="VideoRefreshOnStartupToggle"
+                            Tag="VideoRefreshOnStartup"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+
+                    <controls:SettingsCard Header="图库" Description="启动时自动刷新图库">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEB9F;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="GalleryRefreshOnStartupToggle"
+                            Tag="GalleryRefreshOnStartup"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- ==================== 记住视图方式 ==================== -->
+            <controls:SettingsExpander
+                Header="记住视图方式"
+                Description="下次打开媒体页面时，沿用上次选择的列表 / 网格 / 瀑布流视图"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8A9;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <controls:SettingsExpander.Items>
+                    <controls:SettingsCard Header="音乐" Description="下次打开音乐页面时沿用上次视图方式">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8D6;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="MusicRememberViewToggle"
+                            Tag="MusicRememberView"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+
+                    <controls:SettingsCard Header="视频" Description="下次打开视频页面时沿用上次视图方式">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B2;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="VideoRememberViewToggle"
+                            Tag="VideoRememberView"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+
+                    <controls:SettingsCard Header="图库" Description="下次打开图库页面时沿用上次视图方式">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEB9F;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="GalleryRememberViewToggle"
+                            Tag="GalleryRememberView"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- ==================== 记住排序方式 ==================== -->
+            <controls:SettingsExpander
+                Header="记住排序方式"
+                Description="下次打开媒体页面时，沿用上次选择的排序规则"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8CB;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <controls:SettingsExpander.Items>
+                    <controls:SettingsCard Header="音乐" Description="下次打开音乐页面时沿用上次排序规则">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8D6;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="MusicRememberSortToggle"
+                            Tag="MusicRememberSort"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+
+                    <controls:SettingsCard Header="视频" Description="下次打开视频页面时沿用上次排序规则">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B2;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="VideoRememberSortToggle"
+                            Tag="VideoRememberSort"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+
+                    <controls:SettingsCard Header="图库" Description="下次打开图库页面时沿用上次排序规则">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEB9F;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="GalleryRememberSortToggle"
+                            Tag="GalleryRememberSort"
+                            MinWidth="0"
+                            OnContent=""
+                            OffContent=""
+                            Toggled="RememberSetting_Toggled" />
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- 图形 -->
+            <TextBlock
+                Text="图形"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- ==================== GPU 选择 ==================== -->
+            <controls:SettingsCard Header="Win2D 硬件加速 GPU 选择" Description="选择 Win2D 渲染使用的显卡，手动指定后需要重启应用生效">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE945;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <local:InfoButton
+                        Style="{StaticResource StaticInfoButtonStyle}"
+                        x:Name="GpuInfoButton"
+                        Grid.Column="0"
+                        Width="20"
+                        Height="20"
+                        CornerRadius="10"
+                        VerticalAlignment="Center"
+                        Click="GpuInfoButton_Click">
+                        <TextBlock Text="i"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   FontFamily="Segoe UI"
+                                   FontStyle="Italic"
+                                   VerticalAlignment="Center"
+                                   Margin="0,-1,0,0"/>
+                    </local:InfoButton>
+
+                    <ComboBox
+                        x:Name="GpuComboBox"
+                        Grid.Column="1"
+                        Margin="6,0,0,0"
+                        VerticalAlignment="Center"
+                        DisplayMemberPath="DisplayName"
+                        SelectionChanged="GpuComboBox_SelectionChanged" />
+
+                    <TeachingTip
+                        x:Name="GpuTeachingTip"
+                        Target="{x:Bind GpuInfoButton}"
+                        Title=""
+                        Subtitle="">
+                        <StackPanel>
+                            <TextBlock
+                                Text="为什么会出现多个相同的 GPU？"
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                Margin="0,0,0,4"/>
+                            <TextBlock
+                                Text="同一台电脑多次重装或更新显卡驱动时，系统可能注册多个重复的显卡实例，于是列表里会出现好几个名字一样的显卡。遇到这种情况，可以手动指定一块显卡，或者保持「跟随系统」让系统自动选择最合适的设备。"
+                                FontSize="12"
+                                TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </TeachingTip>
+                </Grid>
+            </controls:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

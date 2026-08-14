@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.VideoSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SightoHear"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    Background="Transparent">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+        <Style x:Key="SettingsSectionHeaderTextBlockStyle"
+               BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+               TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,0,0,6" />
+            </Style.Setters>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer Margin="24,0">
+        <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+            <StackPanel.ChildrenTransitions>
+                <EntranceThemeTransition FromVerticalOffset="50" />
+                <RepositionThemeTransition IsStaggeringEnabled="False" />
+            </StackPanel.ChildrenTransitions>
+
+            <!-- 播放模式 -->
+            <TextBlock
+                Text="播放模式"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard Header="视频播放模式" Description="MediaPlayer 是 Windows 自带播放内核，稳定省心；libmpv 支持 Anime4K 实时超分，但属于实验功能，可能更占资源或出现兼容问题">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE768;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ComboBox
+                    x:Name="PlayerModeComboBox"
+                    MinWidth="190"
+                    SelectionChanged="PlayerModeComboBox_SelectionChanged">
+                    <ComboBoxItem Content="MediaPlayer（推荐）" />
+                    <ComboBoxItem Content="libmpv（实验性）" />
+                </ComboBox>
+            </controls:SettingsCard>
+
+            <!-- x86（32 位）平台不支持 libmpv（无 x86 dll），显示提示并禁用超分选项 -->
+            <TextBlock
+                x:Name="MpvX86WarningText"
+                Text="当前系统为 32 位（x86），libmpv 不支持该架构，超分模式不可用，已自动切换为普通模式。超分模式仅支持 64 位（x64）与 ARM64 系统。"
+                Visibility="Collapsed"
+                Margin="8,4,0,8"
+                TextWrapping="Wrap"
+                Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+
+            <!-- 播放行为 -->
+            <TextBlock
+                Text="播放行为"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard Header="记忆全部视频播放进度" Description="开启后每个视频都会记住看到哪里，下次打开接着播；看到结尾的视频会从头开始">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE823;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="RememberPositionToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="False"
+                    Toggled="RememberPositionToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="自动播放下一个" Description="一个视频播完后自动接着播下一个；关闭则停留在当前视频">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8EE;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="AutoPlayNextToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="False"
+                    Toggled="AutoPlayNextToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="自动播放" Description="打开视频后自动开始播放；关闭后进入播放器时会先暂停">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE768;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="AutoPlayToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="True"
+                    Toggled="AutoPlayToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="后台播放" Description="最小化窗口后视频继续播放；关闭后最小化会暂停，回到窗口自动恢复">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE921;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="BackgroundPlayToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="True"
+                    Toggled="BackgroundPlayToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <!-- 快捷键 -->
+            <TextBlock
+                Text="快捷键"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard
+                x:Name="ShortcutButton"
+                Header="快捷键"
+                Description="自定义播放器的按键操作，支持单键或组合键"
+                IsClickEnabled="True"
+                Click="ShortcutButton_Click">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE765;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+            <!-- 解码设置 -->
+            <TextBlock
+                Text="解码设置"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard Header="视频解码器" Description="内置解码器不依赖系统组件，兼容更多视频格式">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE7F4;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <local:InfoButton
+                        Style="{StaticResource StaticInfoButtonStyle}"
+                        x:Name="DecoderInfoButton"
+                        Grid.Column="0"
+                        Width="20"
+                        Height="20"
+                        CornerRadius="10"
+                        VerticalAlignment="Center"
+                        Visibility="Collapsed"
+                        Click="DecoderInfoButton_Click">
+                        <TextBlock Text="i"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   FontFamily="Segoe UI"
+                                   FontStyle="Italic"
+                                   VerticalAlignment="Center"
+                                   Margin="0,-1,0,0"/>
+                    </local:InfoButton>
+
+                    <ComboBox
+                        x:Name="DecoderBackendComboBox"
+                        Grid.Column="1"
+                        MinWidth="180"
+                        Margin="6,0,0,0"
+                        SelectionChanged="DecoderBackendComboBox_SelectionChanged">
+                        <ComboBoxItem Content="内置 FFmpeg（推荐）" />
+                        <ComboBoxItem Content="Windows 系统解码器" />
+                    </ComboBox>
+
+                    <TeachingTip
+                        x:Name="DecoderTeachingTip"
+                        Target="{x:Bind DecoderInfoButton}"
+                        Title=""
+                        Subtitle="" />
+                </Grid>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="解码方式" Description="硬件优先会自动尝试用显卡解码，更省电更流畅；显卡不支持时自动回退软件解码">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEC4A;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <local:InfoButton
+                        Style="{StaticResource StaticInfoButtonStyle}"
+                        x:Name="DecodeModeInfoButton"
+                        Grid.Column="0"
+                        Width="20"
+                        Height="20"
+                        CornerRadius="10"
+                        VerticalAlignment="Center"
+                        Visibility="Collapsed"
+                        Click="DecodeModeInfoButton_Click">
+                        <TextBlock Text="i"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   FontFamily="Segoe UI"
+                                   FontStyle="Italic"
+                                   VerticalAlignment="Center"
+                                   Margin="0,-1,0,0"/>
+                    </local:InfoButton>
+
+                    <ComboBox
+                        x:Name="DecodeModeComboBox"
+                        Grid.Column="1"
+                        MinWidth="180"
+                        Margin="6,0,0,0"
+                        SelectionChanged="DecodeModeComboBox_SelectionChanged">
+                        <ComboBoxItem Content="自动（硬件优先）" />
+                        <ComboBoxItem Content="强制软件解码" />
+                    </ComboBox>
+
+                    <!-- 提示文案在 DecodeModeInfoButton_Click 中按当前解码后端动态设置 -->
+                    <TeachingTip
+                        x:Name="DecodeModeTeachingTip"
+                        Target="{x:Bind DecodeModeInfoButton}"
+                        Title="">
+                    </TeachingTip>
+                </Grid>
+            </controls:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,41 @@
+# ============================================================
+#  SightoHear  -  Git 属性（换行符与文件类型）
+# ============================================================
+
+# 统一换行符：Git 自动转换（检出时按平台，提交时统一 LF）
+* text=auto
+
+# 源码文件
+*.cs        text eol=crlf
+*.xaml      text eol=crlf
+*.csproj    text eol=crlf
+*.slnx      text eol=crlf
+*.props     text eol=crlf
+*.targets   text eol=crlf
+*.manifest  text eol=crlf
+*.appxmanifest text eol=crlf
+*.json      text eol=crlf
+*.ps1       text eol=crlf
+*.md        text eol=crlf
+*.txt       text eol=crlf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# 文档
+LICENSE     text
+README.md   text
+
+# 二进制文件（不进行换行符转换）
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.ttf       binary
+*.otf       binary
+*.dll       binary
+*.exe       binary
+*.pdb       binary
+*.glsl      text eol=lf
+*.vpy       text eol=lf
+*.py        text eol=lf

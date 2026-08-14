@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.GallerySettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    Background="Transparent">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+        <Style x:Key="SettingsSectionHeaderTextBlockStyle"
+               BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+               TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,0,0,6" />
+            </Style.Setters>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer Margin="24,0">
+        <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+            <StackPanel.ChildrenTransitions>
+                <EntranceThemeTransition FromVerticalOffset="50" />
+                <RepositionThemeTransition IsStaggeringEnabled="False" />
+            </StackPanel.ChildrenTransitions>
+
+            <!-- 浏览 -->
+            <TextBlock
+                Text="浏览"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- 卡片大小 -->
+            <controls:SettingsCard Header="卡片大小" Description="拖动滑块调整图库网格中卡片的大小">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B9;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="12" MinWidth="280">
+                    <Button Content="恢复默认" Click="ResetThumbnailSizeButton_Click" />
+                    <Slider
+                        x:Name="ThumbnailSizeSlider"
+                        Width="220"
+                        Minimum="100"
+                        Maximum="240"
+                        StepFrequency="2"
+                        ValueChanged="ThumbnailSizeSlider_ValueChanged" />
+                    <TextBlock
+                        x:Name="ThumbnailSizeValueText"
+                        VerticalAlignment="Center"
+                        MinWidth="40" />
+                </StackPanel>
+            </controls:SettingsCard>
+
+            <!-- 缩略图质量 -->
+            <controls:SettingsCard Header="缩略图质量" Description="缩略图的生成分辨率，越高越清晰，但占用的磁盘空间和内存也越多">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8A9;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="12" MinWidth="280">
+                    <Button Content="恢复默认" Click="ResetThumbnailQualityButton_Click" />
+                    <Slider
+                        x:Name="ThumbnailQualitySlider"
+                        Width="220"
+                        Minimum="128"
+                        Maximum="512"
+                        StepFrequency="32"
+                        ValueChanged="ThumbnailQualitySlider_ValueChanged" />
+                    <TextBlock
+                        x:Name="ThumbnailQualityValueText"
+                        VerticalAlignment="Center"
+                        MinWidth="40" />
+                </StackPanel>
+            </controls:SettingsCard>
+
+            <!-- 进入图库页时隐藏迷你播放器 -->
+            <controls:SettingsCard Header="图库页隐藏迷你播放器" Description="开启后，进入图库页或查看图片时自动把迷你播放器收起成小胶囊，避免遮挡">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE768;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="HideMiniPlayerToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    Toggled="HideMiniPlayerToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <!-- 后台预热缩略图 -->
+            <controls:SettingsCard Header="后台预热缩略图" Description="进入图库页后提前把缩略图加载到内存，滚动更跟手；首次进入会稍慢一点">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE81C;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="PreloadThumbnailsToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    Toggled="PreloadThumbnailsToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <!-- 显示图片信息 -->
+            <controls:SettingsCard Header="卡片显示图片信息" Description="在缩略图卡片上显示文件名和分辨率">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE946;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="ShowImageInfoToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    Toggled="ShowImageInfoToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <!-- 清理缩略图缓存 -->
+            <controls:SettingsCard Header="清理缩略图缓存" Description="删除本地生成的缩略图缓存，下次浏览时会重新生成">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE74D;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock
+                        x:Name="ThumbnailCacheStatusText"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Button Content="清理缓存" Click="ClearThumbnailCacheButton_Click" />
+                </StackPanel>
+            </controls:SettingsCard>
+
+            <!-- 查看器 -->
+            <TextBlock
+                Text="查看器"
+                Margin="4,16,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- 双击行为 -->
+            <controls:SettingsCard Header="双击行为" Description="双击图片时执行的操作">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8A3;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ComboBox
+                    x:Name="DoubleClickActionComboBox"
+                    MinWidth="180"
+                    SelectionChanged="DoubleClickActionComboBox_SelectionChanged">
+                    <ComboBoxItem Content="放大 / 适应切换" />
+                    <ComboBoxItem Content="切换上一张 / 下一张" />
+                    <ComboBoxItem Content="无操作" />
+                </ComboBox>
+            </controls:SettingsCard>
+
+            <!-- 自动全屏 -->
+            <controls:SettingsCard Header="自动全屏查看" Description="打开图片时自动进入全屏模式">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE740;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="AutoFullScreenToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    Toggled="AutoFullScreenToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <!-- 查看器背景颜色 -->
+            <controls:SettingsCard Header="查看器背景颜色" Description="查看图片时背景的底色">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE790;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ComboBox
+                    x:Name="ViewerBackgroundComboBox"
+                    MinWidth="140"
+                    SelectionChanged="ViewerBackgroundComboBox_SelectionChanged">
+                    <ComboBoxItem Content="黑色" />
+                    <ComboBoxItem Content="深灰" />
+                    <ComboBoxItem Content="浅灰" />
+                </ComboBox>
+            </controls:SettingsCard>
+
+            <!-- 滑动切图动画 -->
+            <controls:SettingsCard Header="滑动切图动画" Description="切换图片时带滑动过渡动画">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE76C;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="SlideAnimationToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    Toggled="SlideAnimationToggle_Toggled" />
+            </controls:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

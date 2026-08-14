@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "SightoHear (Debug x64)",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/artifacts/Debug/x64/SightoHear.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/artifacts/Debug/x64",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "preLaunchTask": "build-winui3-x64-debug",
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "SightoHear (Release x64)",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/artifacts/Release/x64/SightoHear.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/artifacts/Release/x64",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "preLaunchTask": "build-winui3-x64-release",
+            "internalConsoleOptions": "openOnSessionStart"
+        }
+    ]
+}

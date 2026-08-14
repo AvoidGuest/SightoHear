@@ -1,0 +1,544 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.ArtistDetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:SightoHear"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:SightoHear.Models"
+    Background="Transparent"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <FontFamily x:Key="FluentSystemIconsRegularFontFamily">/Assets/Fonts/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular</FontFamily>
+        <local:FilePathToImageConverter x:Key="MusicCoverConverter" />
+
+        <Style x:Key="DetailSongListViewItemStyle" TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="24,0,0,4" />
+        </Style>
+
+        <DataTemplate x:Key="DetailSongItemTemplate" x:DataType="models:MediaItem">
+            <Border
+                Height="64"
+                Padding="12,8"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                DoubleTapped="SongItem_DoubleTapped"
+                RightTapped="SongItem_RightTapped"
+                Tag="{x:Bind}">
+                <Grid x:Name="SongItemGrid" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition x:Name="AlbumColumn" Width="220" />
+                        <ColumnDefinition Width="72" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Grid.Column="0"
+                        Width="40"
+                        Height="40"
+                        Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                        CornerRadius="4">
+                        <Grid>
+                            <FontIcon
+                                FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Glyph="&#xE8D6;" />
+                            <Image
+                                Source="{x:Bind FilePath, Converter={StaticResource MusicCoverConverter}}"
+                                Stretch="UniformToFill" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock
+                            FontWeight="SemiBold"
+                            Text="{x:Bind Title}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind ArtistDisplay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <TextBlock
+                        x:Name="AlbumText"
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind AlbumDisplay}"
+                        TextTrimming="CharacterEllipsis" />
+
+                    <TextBlock
+                        Grid.Column="3"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind DurationText}" />
+
+                    <CheckBox
+                        x:Name="ItemCheckBox"
+                        Grid.Column="4"
+                        VerticalAlignment="Center"
+                        Visibility="Collapsed"
+                        Checked="ArtistSongCheckBox_Checked"
+                        Unchecked="ArtistSongCheckBox_Unchecked" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Padding="0,16,0,0" RowSpacing="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ==================== 宽窗口布局（≥900px） ==================== -->
+        <Grid
+            x:Name="WideHeaderLayout"
+            Grid.Row="0"
+            ColumnSpacing="24"
+            Padding="24,0"
+            Visibility="Visible">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                x:Name="WideCoverBorder"
+                Width="100"
+                Height="100"
+                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="50">
+                <Grid>
+                    <FontIcon
+                        FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                        FontSize="32"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="&#xE77B;" />
+                    <Image
+                        x:Name="WideArtistCoverImage"
+                        Stretch="UniformToFill" />
+                </Grid>
+            </Border>
+
+            <Grid
+                Grid.Column="1"
+                VerticalAlignment="Stretch">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Spacing="6"
+                    Margin="0,-10,0,0">
+                    <TextBlock
+                        x:Name="WideArtistNameText"
+                        FontSize="34"
+                        FontWeight="SemiBold"
+                        MaxLines="2"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        x:Name="WideArtistStatText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+                <Button
+                    x:Name="WidePlayButton"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Width="132"
+                    Height="38"
+                    Padding="20,0"
+                    Margin="-3,-1,0,0"
+                    Click="PlayButton_Click"
+                    CornerRadius="19">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="12" Glyph="&#xE768;" />
+                        <TextBlock Text="播放全部" />
+                    </StackPanel>
+                </Button>
+                <StackPanel
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <ToggleButton
+                        x:Name="WideMultiSelectToggle"
+                        Height="32"
+                        Padding="8,0"
+                        Click="MultiSelectToggle_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon FontSize="12" Glyph="&#xEA98;" />
+                            <TextBlock Text="多选" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <AutoSuggestBox
+                        x:Name="WideSongSearchBox"
+                        Width="320"
+                        Height="32"
+                        MinWidth="260"
+                        PlaceholderText="搜索歌曲"
+                        QueryIcon="Find"
+                        TextChanged="SongSearchBox_TextChanged" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- ==================== 中等宽度窗口布局（600-900px） ==================== -->
+        <Grid
+            x:Name="MediumHeaderLayout"
+            Grid.Row="0"
+            RowSpacing="16"
+            Padding="24,0"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 第一行：封面 + 标题/描述/操作按钮 -->
+            <Grid Grid.Row="0" ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    x:Name="MediumCoverBorder"
+                    Width="100"
+                    Height="100"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="50">
+                    <Grid>
+                        <FontIcon
+                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                            FontSize="32"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xE77B;" />
+                        <Image
+                            x:Name="MediumArtistCoverImage"
+                            Stretch="UniformToFill" />
+                    </Grid>
+                </Border>
+
+                <Grid
+                    Grid.Column="1"
+                    VerticalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        x:Name="MediumArtistNameText"
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        FontSize="28"
+                        FontWeight="SemiBold"
+                        MaxLines="2"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        x:Name="MediumArtistStatText"
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        VerticalAlignment="Bottom"
+                        Margin="0,2,0,0"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                    <!-- 播放全部 + 操作按钮 -->
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.ColumnSpan="2"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        HorizontalAlignment="Left"
+                        Margin="0,8,0,0">
+                        <Button
+                            x:Name="MediumPlayButton"
+                            Width="132"
+                            Height="34"
+                            Padding="20,0"
+                            Click="PlayButton_Click"
+                            CornerRadius="17">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="12" Glyph="&#xE768;" />
+                                <TextBlock Text="播放全部" />
+                            </StackPanel>
+                        </Button>
+                        <ToggleButton
+                            x:Name="MediumMultiSelectToggle"
+                            Height="32"
+                            Padding="8,0"
+                            Click="MultiSelectToggle_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon FontSize="12" Glyph="&#xEA98;" />
+                                <TextBlock Text="多选" />
+                            </StackPanel>
+                        </ToggleButton>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- 第二行：搜索框 -->
+            <AutoSuggestBox
+                x:Name="MediumSongSearchBox"
+                Grid.Row="1"
+                Height="32"
+                PlaceholderText="搜索歌曲"
+                QueryIcon="Find"
+                TextChanged="SongSearchBox_TextChanged" />
+        </Grid>
+
+        <!-- ==================== 窄窗口布局（<600px） ==================== -->
+        <Grid
+            x:Name="NarrowHeaderLayout"
+            Grid.Row="0"
+            RowSpacing="12"
+            Padding="24,0"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 第一行：封面 + 标题/描述/操作按钮 -->
+            <Grid Grid.Row="0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    x:Name="NarrowCoverBorder"
+                    Width="100"
+                    Height="100"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="50">
+                    <Grid>
+                        <FontIcon
+                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                            FontSize="32"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xE77B;" />
+                        <Image
+                            x:Name="NarrowArtistCoverImage"
+                            Stretch="UniformToFill" />
+                    </Grid>
+                </Border>
+
+                <Grid
+                    Grid.Column="1"
+                    VerticalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        x:Name="NarrowArtistNameText"
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        FontSize="28"
+                        FontWeight="SemiBold"
+                        MaxLines="2"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        x:Name="NarrowArtistStatText"
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        VerticalAlignment="Bottom"
+                        Margin="0,2,0,0"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                    <!-- 播放全部 + 操作按钮 -->
+                    <StackPanel
+                        Grid.Row="1"
+                        Grid.ColumnSpan="2"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        HorizontalAlignment="Left"
+                        Margin="0,8,0,0">
+                        <Button
+                            x:Name="NarrowPlayButton"
+                            Width="132"
+                            Height="34"
+                            Padding="20,0"
+                            Click="PlayButton_Click"
+                            CornerRadius="17">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="12" Glyph="&#xE768;" />
+                                <TextBlock Text="播放全部" />
+                            </StackPanel>
+                        </Button>
+                        <ToggleButton
+                            x:Name="NarrowMultiSelectToggle"
+                            Height="32"
+                            Padding="8,0"
+                            Click="MultiSelectToggle_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon FontSize="12" Glyph="&#xEA98;" />
+                                <TextBlock Text="多选" />
+                            </StackPanel>
+                        </ToggleButton>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- 第二行：搜索框 -->
+            <AutoSuggestBox
+                x:Name="NarrowSongSearchBox"
+                Grid.Row="1"
+                Height="32"
+                PlaceholderText="搜索歌曲"
+                QueryIcon="Find"
+                TextChanged="SongSearchBox_TextChanged" />
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid
+                x:Name="MultiSelectToolbar"
+                Grid.Row="0"
+                Margin="24,0,2,8"
+                Padding="12,8"
+                ColumnSpacing="8"
+                Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox
+                    x:Name="SelectAllCheckBox"
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Content="全选"
+                    Click="SelectAllCheckBox_Click" />
+                <TextBlock
+                    x:Name="SelectedCountText"
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Margin="12,0,0,0"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Button
+                    x:Name="MultiSelectPlayAllButton"
+                    Grid.Column="2"
+                    Height="32"
+                    Padding="8,0"
+                    Click="MultiSelectPlayAllButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon FontSize="12" Glyph="&#xE768;" />
+                        <TextBlock Text="播放选中" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <Grid
+                x:Name="ListHeader"
+                Grid.Row="1"
+                Padding="12,8"
+                Margin="24,0"
+                ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition x:Name="AlbumColumn2" Width="220" />
+                    <ColumnDefinition Width="72" />
+                    <ColumnDefinition Width="36" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="封面" />
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="标题" />
+                <TextBlock
+                    x:Name="AlbumColumnHeader"
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="专辑" />
+                <TextBlock
+                    Grid.Column="3"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="时长" />
+            </Grid>
+
+            <ListView
+                x:Name="SongList"
+                Grid.Row="2"
+                Padding="0,0,24,116"
+                IsItemClickEnabled="True"
+                ItemClick="SongList_ItemClick"
+                ContainerContentChanging="SongList_ContainerContentChanging"
+                ItemContainerStyle="{StaticResource DetailSongListViewItemStyle}"
+                ItemTemplate="{StaticResource DetailSongItemTemplate}"
+                SelectionMode="None">
+                <ListView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsStackPanel />
+                    </ItemsPanelTemplate>
+                </ListView.ItemsPanel>
+            </ListView>
+
+            <TextBlock
+                x:Name="EmptyStateText"
+                Grid.Row="2"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Visibility="Collapsed" />
+        </Grid>
+    </Grid>
+</Page>

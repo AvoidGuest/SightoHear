@@ -1,0 +1,134 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-winui3-x64-debug",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SightoHear.csproj",
+                "--configuration",
+                "Debug",
+                "--runtime",
+                "win-x64",
+                "-p:Platform=x64",
+                "-p:SelfContained=false"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-winui3-x86-debug",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SightoHear.csproj",
+                "--configuration",
+                "Debug",
+                "--runtime",
+                "win-x86",
+                "-p:Platform=x86",
+                "-p:SelfContained=false"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-winui3-arm64-debug",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SightoHear.csproj",
+                "--configuration",
+                "Debug",
+                "--runtime",
+                "win-arm64",
+                "-p:Platform=ARM64",
+                "-p:SelfContained=false"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-winui3-x64-release",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SightoHear.csproj",
+                "--configuration",
+                "Release",
+                "--runtime",
+                "win-x64",
+                "-p:Platform=x64",
+                "-p:SelfContained=false"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-winui3-x86-release",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SightoHear.csproj",
+                "--configuration",
+                "Release",
+                "--runtime",
+                "win-x86",
+                "-p:Platform=x86",
+                "-p:SelfContained=false"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-winui3-arm64-release",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SightoHear.csproj",
+                "--configuration",
+                "Release",
+                "--runtime",
+                "win-arm64",
+                "-p:Platform=ARM64",
+                "-p:SelfContained=false"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.DebugPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+        <Style x:Key="SettingsSectionHeaderTextBlockStyle"
+               BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+               TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,0,0,6" />
+            </Style.Setters>
+        </Style>
+        <Style x:Key="SettingsSubSectionHeaderTextBlockStyle"
+               BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+               TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,12,0,4" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style.Setters>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer Margin="24,0,24,0">
+        <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+            <StackPanel.ChildrenTransitions>
+                <EntranceThemeTransition FromVerticalOffset="50" />
+                <RepositionThemeTransition IsStaggeringEnabled="False" />
+            </StackPanel.ChildrenTransitions>
+
+            <!-- 日志 -->
+            <TextBlock
+                Text="日志"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- 日志收集 -->
+            <controls:SettingsExpander
+                Header="日志收集"
+                Description="记录软件运行过程与错误信息，用于排查问题"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEBE8;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="LogEnabledToggle"
+                    IsOn="False"
+                    OnContent=""
+                    OffContent=""
+                    MinWidth="0"
+                    Toggled="LogEnabledToggle_Toggled"/>
+                <controls:SettingsExpander.Items>
+                    <!-- 日志设置 -->
+                    <TextBlock
+                        Text="日志设置"
+                        Style="{StaticResource SettingsSubSectionHeaderTextBlockStyle}" />
+
+                    <!-- 收集级别 -->
+                    <controls:SettingsCard Header="收集级别" Description="遇到闪退等疑难问题时，可以临时调到 Trace 级别获取更详细的信息">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8A5;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ComboBox
+                            x:Name="LogLevelComboBox"
+                            MinWidth="120"
+                            SelectionChanged="LogLevelComboBox_SelectionChanged">
+                            <ComboBoxItem Content="Trace"/>
+                            <ComboBoxItem Content="Debug"/>
+                            <ComboBoxItem Content="Info" IsSelected="True"/>
+                            <ComboBoxItem Content="Error"/>
+                        </ComboBox>
+                    </controls:SettingsCard>
+
+                    <!-- 保护敏感信息 -->
+                    <controls:SettingsCard Header="保护日志中的敏感信息" Description="把日志里的个人路径和访问令牌等敏感内容替换掉再保存">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE72E;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ProtectSensitiveToggle"
+                            IsOn="True"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="ProtectSensitiveToggle_Toggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 自动清理 -->
+                    <controls:SettingsCard Header="自动清理旧日志" Description="定期清理过期的日志文件，避免越积越多">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE74D;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="AutoCleanToggle"
+                            IsOn="True"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="AutoCleanToggle_Toggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 清理天数 -->
+                    <controls:SettingsCard Header="保留天数" Description="自动清理保留天数之前的日志文件">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE787;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <NumberBox
+                            x:Name="CleanDaysNumberBox"
+                            Value="7"
+                            Minimum="1"
+                            Maximum="30"
+                            SpinButtonPlacementMode="Compact"
+                            Width="80"
+                            ValueChanged="CleanDaysNumberBox_ValueChanged"/>
+                    </controls:SettingsCard>
+
+                    <!-- 日志文件管理 -->
+                    <controls:SettingsCard
+                        Header="日志文件管理"
+                        ContentAlignment="Left"
+                        HorizontalContentAlignment="Left">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Name="OpenLogFolderButton"
+                                Click="OpenLogFolderButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;" FontSize="12"/>
+                                    <TextBlock Text="打开日志文件夹"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 诊断工具 -->
+                    <TextBlock
+                        Text="诊断工具"
+                        Style="{StaticResource SettingsSubSectionHeaderTextBlockStyle}" />
+
+                    <!-- 资源诊断 -->
+                    <controls:SettingsCard
+                        Header="资源诊断"
+                        Description="点击后输出进程内存、缓存条目数、页面泄漏与渲染画布数等诊断信息"
+                        ContentAlignment="Left"
+                        HorizontalContentAlignment="Left">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D2;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <Button
+                            x:Name="SnapshotButton"
+                            Click="SnapshotButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D2;" FontSize="12"/>
+                                <TextBlock Text="输出资源诊断快照"/>
+                            </StackPanel>
+                        </Button>
+                    </controls:SettingsCard>
+
+                    <!-- GPU 监控 -->
+                    <controls:SettingsCard
+                        Header="GPU 监控"
+                        Description="监控显存占用、帧时长、掉帧与内存变化，停止后生成诊断报告到日志文件夹"
+                        ContentAlignment="Left"
+                        HorizontalContentAlignment="Left">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D2;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Name="GpuMonitorStartButton"
+                                Click="GpuMonitorStartButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D2;" FontSize="12"/>
+                                    <TextBlock Text="开始 GPU 监控"/>
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                x:Name="GpuMonitorStopButton"
+                                Click="GpuMonitorStopButton_Click"
+                                IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE711;" FontSize="12"/>
+                                    <TextBlock Text="停止并生成报告"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- GPU 监控状态 -->
+                    <controls:SettingsCard
+                        Header="GPU 监控状态"
+                        ContentAlignment="Left"
+                        HorizontalContentAlignment="Left">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D2;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel>
+                            <TextBlock
+                                x:Name="GpuMonitorStatusText"
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </controls:SettingsCard>
+
+                    <!-- 开发者工具 -->
+                    <TextBlock
+                        Text="开发者工具"
+                        Style="{StaticResource SettingsSubSectionHeaderTextBlockStyle}" />
+
+                    <!-- 开发者模式 -->
+                    <controls:SettingsCard Header="开发者模式" Description="显示实时日志等额外的调试信息与工具">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE770;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="DevModeToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="DevModeToggle_Toggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 开发者面板 -->
+                    <controls:SettingsCard
+                        x:Name="DevModePanel"
+                        Header="实时日志"
+                        Visibility="Collapsed"
+                        ContentAlignment="Left"
+                        HorizontalContentAlignment="Left">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE770;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel>
+                            <TextBlock x:Name="CrashSummaryText" FontSize="12"
+                                       Foreground="#E81123" Margin="0,0,0,8"
+                                       TextWrapping="Wrap" Visibility="Collapsed"/>
+                            <TextBlock x:Name="LogStatsText" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       Margin="0,0,0,4"/>
+                            <ListView x:Name="RecentLogsListView" MaxHeight="200"
+                                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                      BorderThickness="1" CornerRadius="4" Padding="4"
+                                      IsItemClickEnabled="False" SelectionMode="None">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Text="{x:Bind}" FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   FontFamily="Consolas"/>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <!-- 性能监测 -->
+            <TextBlock
+                Text="性能监测"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <!-- Win2D 性能监测 -->
+            <controls:SettingsExpander
+                Header="Win2D 性能监测悬浮窗"
+                Description="在窗口一角显示 Win2D 渲染性能与资源占用"
+                IsExpanded="False">
+                <controls:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEC48;"/>
+                </controls:SettingsExpander.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="Win2DPerfEnabledToggle"
+                    IsOn="False"
+                    OnContent=""
+                    OffContent=""
+                    MinWidth="0"
+                    Toggled="Win2DPerfEnabledToggle_Toggled"/>
+                <controls:SettingsExpander.Items>
+                    <!-- 一键开启/关闭所有 -->
+                    <controls:SettingsCard Header="全部">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE74E;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="Win2DAllTogglesToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DAllToggles_Toggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示实时帧率 -->
+                    <controls:SettingsCard Header="显示实时帧率 (FPS)">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowFpsToggle"
+                            IsOn="True"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示平均帧率 -->
+                    <controls:SettingsCard Header="显示平均帧率">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowAvgFpsToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示帧时长 -->
+                    <controls:SettingsCard Header="显示帧时长">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowFrameTimeToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示 Update 耗时 -->
+                    <controls:SettingsCard Header="显示 Update 耗时">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowUpdateTimeToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示 Draw 耗时 -->
+                    <controls:SettingsCard Header="显示 Draw 耗时">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowDrawTimeToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示帧率波动 -->
+                    <controls:SettingsCard Header="显示帧率波动">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowFrameJitterToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示掉帧次数 -->
+                    <controls:SettingsCard Header="显示掉帧次数">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowDroppedFramesToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示进程内存 -->
+                    <controls:SettingsCard Header="显示进程内存">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowMemoryToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示渲染分辨率 -->
+                    <controls:SettingsCard Header="显示渲染分辨率">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowResolutionToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+
+                    <!-- 显示 GPU 渲染模式 -->
+                    <controls:SettingsCard Header="显示 GPU 渲染模式">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9D9;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch
+                            x:Name="ShowGpuModeToggle"
+                            IsOn="False"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Toggled="Win2DPerfOptionToggled"/>
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

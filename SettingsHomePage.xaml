@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.SettingsHomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SightoHear"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+        <Style x:Key="SettingsSectionHeaderTextBlockStyle"
+               BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+               TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,24,0,6" />
+            </Style.Setters>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,0,24,0">
+        <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+            <StackPanel.ChildrenTransitions>
+                <EntranceThemeTransition FromVerticalOffset="50" />
+                <RepositionThemeTransition IsStaggeringEnabled="False" />
+            </StackPanel.ChildrenTransitions>
+
+            <!-- 通用 -->
+            <TextBlock
+                Text="通用"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard
+                x:Name="BasicButton"
+                Header="基础"
+                Description="管理媒体库文件夹、删除习惯与启动记忆等基础选项"
+                Click="BasicButton_Click"
+                IsClickEnabled="True">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE713;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                x:Name="AppearanceButton"
+                Header="外观"
+                Description="调整主题、背景、窗口与交互等外观选项"
+                Click="AppearanceButton_Click"
+                IsClickEnabled="True">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE771;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+            <!-- 媒体 -->
+            <TextBlock
+                Text="媒体"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard
+                x:Name="VideoButton"
+                Header="视频"
+                Description="视频播放方式、续播与解码等设置"
+                Click="VideoButton_Click"
+                IsClickEnabled="True">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B2;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                x:Name="MusicButton"
+                Header="音乐"
+                Description="音乐文件打开方式等设置"
+                Click="MusicButton_Click"
+                IsClickEnabled="True">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8D6;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                x:Name="GalleryButton"
+                Header="图库"
+                Description="图库浏览、缩略图与图片查看器设置"
+                Click="GalleryButton_Click"
+                IsClickEnabled="True">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEB9F;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+            <!-- 其他 -->
+            <TextBlock
+                Text="其他"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard
+                x:Name="DebugButton"
+                Header="调试"
+                Description="日志记录、性能监测等开发者选项"
+                Click="DebugButton_Click"
+                IsClickEnabled="True">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xEC7A;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                x:Name="AboutButton"
+                Header="关于"
+                Description="查看应用信息、版本与开源致谢"
+                Click="AboutButton_Click"
+                IsClickEnabled="True">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE946;"/>
+                </controls:SettingsCard.HeaderIcon>
+            </controls:SettingsCard>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

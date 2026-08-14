@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SightoHear.VideoShortcutSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SightoHear"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    Background="Transparent"
+    Unloaded="VideoShortcutSettingsPage_Unloaded">
+
+    <Page.Resources>
+        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+    </Page.Resources>
+
+    <Grid>
+        <ScrollViewer Margin="24,0">
+            <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,16,0,0">
+                <StackPanel.ChildrenTransitions>
+                    <EntranceThemeTransition FromVerticalOffset="50" />
+                    <RepositionThemeTransition IsStaggeringEnabled="False" />
+                </StackPanel.ChildrenTransitions>
+
+                <!-- 标题栏：左侧标题 + 右侧按钮 -->
+                <Grid Margin="4,0,4,4">
+                    <TextBlock
+                        Text="快捷键自定义"
+                        Style="{StaticResource SubtitleTextBlockStyle}"
+                        VerticalAlignment="Center" />
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        HorizontalAlignment="Right">
+                        <Button x:Name="AddButton" Click="AddButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE710;" FontSize="12" />
+                                <TextBlock Text="添加行为" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ResetButton" Content="恢复默认" Click="ResetButton_Click" />
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock
+                    Text="为视频播放器设置快捷键。支持单个按键或 Ctrl / Alt / Shift 组合键；系统保留按键（如 Esc、Tab、Delete）不能设置；捕获按键时按 Esc 或 Delete 可取消。"
+                    Margin="4,0,4,8"
+                    TextWrapping="Wrap"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <!-- 快捷键卡片列表（代码构建，见 VideoShortcutSettingsPage.xaml.cs）
+                     必须自带 RepositionThemeTransition：SettingsExpander 展开/收起时高度变化，
+                     下方卡片才能平滑归位（与调试设置页一致） -->
+                <StackPanel x:Name="ShortcutList" Spacing="{StaticResource SettingsCardSpacing}">
+                    <StackPanel.ChildrenTransitions>
+                        <RepositionThemeTransition IsStaggeringEnabled="False" />
+                    </StackPanel.ChildrenTransitions>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 快捷键校验失败提示（必须挂入可视化树，Target 动态指定为当前捕获按钮） -->
+        <TeachingTip
+            x:Name="ErrorTip"
+            Title="无法设置该快捷键" />
+    </Grid>
+</Page>

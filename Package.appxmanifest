@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX 打包清单（VS 单项目打包专用）
+  ================================
+  · 包版本 Identity.Version 必须与 SightoHear.csproj 的 <Version> 保持同步：
+      - 测试阶段 0.3.0-beta → 此处写 0.3.0.0
+      - 正式版 1.0.0       → 此处写 1.0.0.0
+  · MSIX 规则：同一应用只能升不能降，每次打包需按语义化版本递增（新增功能→升第二位 minor，修 bug→升第三位 patch）。
+  · Publisher（CN=AvoidGuest Studio）须与打包证书的 CN 一致：VS「创建应用包」向导中
+    生成新测试证书时把"发布者"填 AvoidGuest Studio 即可。
+  · ★ 重要：Publisher 从 CN=AvoidGuest 改为 CN=AvoidGuest Studio，是为了改变包族名（PFN）
+    避开历史被污染的 PFN "SightoHear_4yvherm9p9sp8"（该 PFN 在系统中残留了错误的激活状态，
+    导致 AAM 激活返回 0x80270254「应用未注册/不支持合约」，进程无法创建）。
+    改动后 PFN 变为 SightoHear_2za0jqg2veqqe（Publisher hash 由 CN 决定），激活恢复正常。
+    若再次遇到相同症状，可继续更换 CN 以换新 PFN。
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap10 rescap">
+
+  <Identity
+    Name="SightoHear"
+    Publisher="CN=AvoidGuest Studio"
+    Version="0.3.2.0" />
+
+  <Properties>
+    <DisplayName>SightoHear</DisplayName>
+    <PublisherDisplayName>AvoidGuest</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="SightoHear"
+        Description="统合 Windows 的媒体增强体验"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.scale-200.png"
+        Square44x44Logo="Assets\Square44x44Logo.scale-200.png">
+        <!-- 注意：VisualElements 仅支持 DisplayName/Description/BackgroundColor/Square150x150Logo/Square44x44Logo，
+             其他磁贴属性（如 Wide310x150Logo）必须放 DefaultTile 子元素上（MakeAppx 严格 schema 校验） -->
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.scale-200.png" />
+        <uap:SplashScreen Image="Assets\LockScreenLogo.scale-200.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- WinUI 3 桌面应用（完整信任）打包必需 -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
