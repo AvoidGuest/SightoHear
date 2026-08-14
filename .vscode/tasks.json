@@ -7,7 +7,7 @@
             "command": "dotnet",
             "args": [
                 "build",
-                "${workspaceFolder}/SightoHear.csproj",
+                "${workspaceFolder}/src/SightoHear.csproj",
                 "--configuration",
                 "Debug",
                 "--runtime",
@@ -31,7 +31,7 @@
             "command": "dotnet",
             "args": [
                 "build",
-                "${workspaceFolder}/SightoHear.csproj",
+                "${workspaceFolder}/src/SightoHear.csproj",
                 "--configuration",
                 "Debug",
                 "--runtime",
@@ -52,7 +52,7 @@
             "command": "dotnet",
             "args": [
                 "build",
-                "${workspaceFolder}/SightoHear.csproj",
+                "${workspaceFolder}/src/SightoHear.csproj",
                 "--configuration",
                 "Debug",
                 "--runtime",
@@ -73,7 +73,7 @@
             "command": "dotnet",
             "args": [
                 "build",
-                "${workspaceFolder}/SightoHear.csproj",
+                "${workspaceFolder}/src/SightoHear.csproj",
                 "--configuration",
                 "Release",
                 "--runtime",
@@ -94,7 +94,7 @@
             "command": "dotnet",
             "args": [
                 "build",
-                "${workspaceFolder}/SightoHear.csproj",
+                "${workspaceFolder}/src/SightoHear.csproj",
                 "--configuration",
                 "Release",
                 "--runtime",
@@ -115,7 +115,7 @@
             "command": "dotnet",
             "args": [
                 "build",
-                "${workspaceFolder}/SightoHear.csproj",
+                "${workspaceFolder}/src/SightoHear.csproj",
                 "--configuration",
                 "Release",
                 "--runtime",

@@ -88,12 +88,14 @@ function Find-SdkTool {
     if (-not (Test-Path $cacheRoot)) {
         throw "未找到 Windows SDK BuildTools 缓存目录：$cacheRoot`n请先执行 dotnet restore（项目依赖 Microsoft.Windows.SDK.BuildTools 包）"
     }
+    # 打包工具（makeappx/signtool）必须在【打包主机】上运行，本机为 x64，故始终选用 x64 版本；
+    # 不能用 $Platform 匹配——ARM64 打包时 arm64 版工具是 ARM64 原生二进制，无法在 x64 主机执行。
     $tool = Get-ChildItem $cacheRoot -Recurse -Filter $ToolName -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -match "\\bin\\[^\\]+\\$Platform\\" } |
+        Where-Object { $_.FullName -match "\\bin\\[^\\]+\\x64\\" } |
         Sort-Object FullName -Descending |
         Select-Object -First 1
     if (-not $tool) {
-        throw "在 $cacheRoot 中未找到 $ToolName（平台 $Platform）"
+        throw "在 $cacheRoot 中未找到 $ToolName（打包主机架构 x64）"
     }
     return $tool.FullName
 }
