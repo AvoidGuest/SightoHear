@@ -164,7 +164,7 @@ SightoHear 站在众多优秀开源项目的肩膀上，特此致谢：
 ---
 
 <div align="center">
-<sub>软件全程用 AI 编写</sub>
+<sub>软件全程使用 AI 编写</sub>
 <br>
 <sub>软件图标参考了 Icons8 的部分素材，侵删</sub>
 </div>
