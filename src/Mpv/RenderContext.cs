@@ -1,4 +1,4 @@
-﻿using Silk.NET.Core.Native;
+using Silk.NET.Core.Native;
 using Silk.NET.Direct3D11;
 using Silk.NET.DXGI;
 using System.Threading;
@@ -131,15 +131,38 @@ public unsafe class RenderContext
             windowSettings.Profile = settings.GraphicsProfile;
             windowSettings.WindowBorder = WindowBorder.Hidden;
             windowSettings.WindowState = WindowState.Minimized;
-            NativeWindow nativeWindow = new(windowSettings);
 
-            _sharedBindingContext = new GLFWBindingsContext();
-            Wgl.LoadBindings(_sharedBindingContext);
+            // ★★ Native AOT 必须关闭 OpenTK 的自动绑定加载 ★★
+            //
+            // OpenTK 的 NativeWindow 默认会反射地"猜"绑定类：
+            //     Type t = assembly.GetType("OpenTK.Graphics." + name + ".GL");
+            //     if (t == null) return;                       // ← 静默返回，不抛异常！
+            //     t.GetMethod("LoadBindings").Invoke(null, ...);
+            // AOT 下 Assembly.GetType(string) 取不到元数据 → 返回 null → 直接 return，
+            // 于是绑定从未加载。之后第一次碰 GL/WGL 就抛：
+            //     InvalidOperationException: You need to initialize the OpenGL binding first
+            //       by calling LoadBindings() or creating a compatible OpenGL window.
+            // 表现为「一打开超分视频就闪退（0xc000027b）」，且日志里只有一条无关痛痒的
+            //   「Cannot load assembly 'OpenTK.Graphics'. No metadata found for this assembly.」
+            // 极难定位。OpenTK 的异常信息本身就建议这条路：AutoLoadBindings=false + 手动加载。
+            windowSettings.AutoLoadBindings = false;
+
+            NativeWindow nativeWindow = new(windowSettings);
 
             _sharedContext = nativeWindow.Context;
             _sharedContextSettings = settings;
 
+            // 先让上下文成为当前上下文，再解析函数指针：
+            // GLFWBindingsContext.GetProcAddress 走 glfwGetProcAddress，没有当前上下文时
+            // 部分 GL 入口点会解析失败（返回 IntPtr.Zero → 调用时 AccessViolation）。
             _sharedContext.MakeCurrent();
+
+            // 手动加载绑定：GL 供 mpv 渲染回调与 FrameBuffer 直接调用，
+            // WGL 供随后的 WGL_NV_DX_interop（D3D11 纹理与 GL 互操作）使用。
+            // 两者必须用同一个 IBindingsContext，避免函数指针表来自不同的解析上下文。
+            _sharedBindingContext = new GLFWBindingsContext();
+            OpenTK.Graphics.OpenGL.GL.LoadBindings(_sharedBindingContext);
+            Wgl.LoadBindings(_sharedBindingContext);
         }
         else
         {

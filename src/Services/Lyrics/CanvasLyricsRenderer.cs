@@ -13,7 +13,7 @@ using Windows.UI;
 
 namespace SightoHear.Services.Lyrics
 {
-    public sealed class CanvasLyricsRenderer : IDisposable
+    public sealed partial class CanvasLyricsRenderer : IDisposable
     {
         private static readonly Regex InlineTimeTagRegex = new(@"<\d+:\d+[\.:]\d+>", RegexOptions.Compiled);
         private const double CurrentLineAnchor = 0.50;
@@ -30,7 +30,6 @@ namespace SightoHear.Services.Lyrics
         private const double CurrentUnplayedOpacity = 0.30;
         private const double SecondaryOpacity = 0.60;
         private const double NonCurrentOpacity = 0.45;
-        private const double ScrollDurationSeconds = 0.30;
         private const double VisualDurationSeconds = 0.18;
         private const double LyricsVisualLeadMs = 220;
         private const double FloatAmplitude = 4.0;
@@ -38,6 +37,7 @@ namespace SightoHear.Services.Lyrics
         private const double ManualScrollHoldMs = 1600;
         private const double AutoFollowResumeDistance = 10;
         private const double ManualBrowseOpacity = 0.56;
+        private const double ScrollDurationSeconds = 0.30;
 
         private readonly object _lineHitsLock = new();
         // ★ 歌词渲染锁：保护 _renderLines 的遍历与重建。渲染线程（Win2D Update/Draw 回调）
@@ -46,7 +46,9 @@ namespace SightoHear.Services.Lyrics
         private readonly object _renderLinesLock = new();
         private readonly List<LineLayoutHit> _lineHits = [];
         private volatile List<LineLayoutHit>? _completedLineHits;
-        private readonly DoubleTransition _scrollTransition = new(0, ScrollDurationSeconds);
+        // ★ 自动跟随滚动已改为"每行独立 YOffset"（RenderLineState.YOffset，见 UpdateScrollTarget）：
+        //   每行拥有自己的滚动起点/终点/延迟/曲线，换行时各行动画在时间上错开 → 真正的交错滚动。
+        //   此处仅保留手动滚动用的全局偏移（滚轮浏览 + 回到自动跟随的 carry 过渡）。
         private readonly DoubleTransition _manualScrollTransition = new(0, ScrollDurationSeconds);
         private List<LyricsLine>? _lines;
         private List<RenderLineState> _renderLines = [];
@@ -101,6 +103,12 @@ namespace SightoHear.Services.Lyrics
             set => _userDelayMs = (int)value;
         }
 
+        // ★ 高级渲染效果开关（volatile：设置弹窗 UI 线程写入，渲染线程每帧读取，无需加锁）
+        //   总开关关闭后子效果（逐字浮起 / 交错滚动）全部禁用，恢复基础渲染。
+        public volatile bool EnableAdvancedRendering = true;
+        public volatile bool EnableAdvFloat = true;
+        public volatile bool EnableAdvInterleaveScroll = true;
+
         /// <summary>歌词渲染统一使用的时间轴（播放位置 + 视觉提前量 − 用户延迟）。
         /// 减号语义：加延迟（正值）→ 时间轴回退 → 高亮更早的行；减延迟（负值）→ 时间轴前进。</summary>
         private double LyricsTimeMs => Math.Max(0, CurrentProgressMs + LyricsVisualLeadMs - UserDelayMs);
@@ -124,7 +132,6 @@ namespace SightoHear.Services.Lyrics
             _currentLineIndex = 0;
             _lastCurrentLineIndex = -1;
             _hoverLineIndex = -1;
-            _scrollTransition.JumpTo(0);
             _manualScrollTransition.JumpTo(0);
             _manualScrollUntilTick = 0;
             _isManualScrolling = false;
@@ -160,7 +167,6 @@ namespace SightoHear.Services.Lyrics
             _currentLineIndex = 0;
             _lastCurrentLineIndex = -1;
             _hoverLineIndex = -1;
-            _scrollTransition.JumpTo(0);
             _manualScrollTransition.JumpTo(0);
             _manualScrollUntilTick = 0;
             _isManualScrolling = false;
@@ -190,7 +196,6 @@ namespace SightoHear.Services.Lyrics
             UpdateManualBrowseVisibility(elapsedTime.TotalSeconds);
             UpdateLineVisualTargets();
 
-            _scrollTransition.Update(elapsedTime);
             _manualScrollTransition.Update(elapsedTime);
             lock (_renderLinesLock)
             {
@@ -205,12 +210,19 @@ namespace SightoHear.Services.Lyrics
         {
             double timeMs = LyricsTimeMs;
 
+            // 高级渲染总开关或"逐字浮起"子开关关闭时：不推进浮起动画，
+            // 并清零已有偏移（防止开关切换瞬间残留下一次的浮起高度）。
+            bool floatEnabled = EnableAdvancedRendering && EnableAdvFloat;
+
             // ★ 加锁：主线程 SetLyrics 可能在渲染线程遍历期间重建 _renderLines
             lock (_renderLinesLock)
             {
                 foreach (RenderLineState line in _renderLines)
                 {
-                    line.AnimationManager.Update(timeMs);
+                    if (floatEnabled)
+                        line.AnimationManager.Update(timeMs);
+                    else
+                        line.AnimationManager.ClearOffsets();
                 }
             }
         }
@@ -238,7 +250,9 @@ namespace SightoHear.Services.Lyrics
                     EnsureLayout(surface);
 
                 double timeMs = currentProgressMs - UserDelayMs;
-                double yOffsetBase = _lyricsY + _lyricsHeight * CurrentLineAnchor + _scrollTransition.Value + _manualScrollTransition.Value;
+                // 自动跟随滚动由各行独立 YOffset 提供（见 UpdateScrollTarget/每行 YOffsetTransition），
+                // 此处基准仅含手动滚动偏移。
+                double yOffsetBase = _lyricsY + _lyricsHeight * CurrentLineAnchor + _manualScrollTransition.Value;
                 double clipTop = _lyricsY - 180;
                 double clipBottom = _lyricsY + _lyricsHeight + 220;
 
@@ -248,8 +262,8 @@ namespace SightoHear.Services.Lyrics
                     for (int i = 0; i < _renderLines.Count; i++)
                     {
                         RenderLineState line = _renderLines[i];
-                        double lineTop = yOffsetBase + line.FlowTop;
-                        double lineBottom = yOffsetBase + line.FlowBottom;
+                        double lineTop = yOffsetBase + line.FlowTop + line.YOffset.Value;
+                        double lineBottom = yOffsetBase + line.FlowBottom + line.YOffset.Value;
                         if (lineBottom < clipTop)
                             continue;
 
@@ -310,39 +324,56 @@ namespace SightoHear.Services.Lyrics
 
         public void ResumeAutoFollow(bool animated = true)
         {
-            double previousCombinedOffset = _scrollTransition.Value + _manualScrollTransition.Value;
             _manualScrollUntilTick = 0;
             _isManualScrolling = false;
             UpdateCurrentLine();
 
             if (animated)
             {
-                double targetScroll;
                 lock (_renderLinesLock)
                 {
                     if (_renderLines.Count == 0 || _currentLineIndex < 0 || _currentLineIndex >= _renderLines.Count)
-                        targetScroll = double.NaN;
-                    else
-                        targetScroll = -_renderLines[_currentLineIndex].PrimaryCenterY;
+                    {
+                        _manualScrollTransition.JumpTo(0);
+                        _manualBrowseVisibility = 0;
+                        _lastCurrentLineIndex = -1;
+                        UpdateScrollTarget(isLayoutPass: true);
+                        UpdateLineVisualTargets(force: true);
+                        return;
+                    }
+
+                    double targetScroll = -_renderLines[_currentLineIndex].PrimaryCenterY;
+                    // 总偏差 = 手动滚动偏移 + 当前行自动偏移与目标的差（行可能还在过渡中）
+                    double currentLineOffset = _renderLines[_currentLineIndex].YOffset.Value;
+                    double carryOffset = _manualScrollTransition.Value + (currentLineOffset - targetScroll);
+
+                    // 行的自动偏移立即归位到目标，手动偏移从 carry 平滑归零（视觉无跳变）
+                    foreach (RenderLineState line in _renderLines)
+                    {
+                        line.YOffset.SetDelay(0);
+                        line.YOffset.SetDuration(ScrollDurationSeconds);
+                        line.YOffset.JumpTo(targetScroll);
+                    }
+                    _manualScrollTransition.JumpTo(carryOffset);
+                    _manualScrollTransition.Start(0);
                 }
-                if (double.IsNaN(targetScroll))
-                {
-                    _manualScrollTransition.JumpTo(0);
-                    _manualBrowseVisibility = 0;
-                    _lastCurrentLineIndex = -1;
-                    UpdateScrollTarget(isLayoutPass: true);
-                    UpdateLineVisualTargets(force: true);
-                    return;
-                }
-                double carryOffset = previousCombinedOffset - targetScroll;
-                _scrollTransition.JumpTo(targetScroll);
-                _manualScrollTransition.JumpTo(carryOffset);
-                _manualScrollTransition.Start(0);
                 _lastCurrentLineIndex = _currentLineIndex;
                 UpdateLineVisualTargets(force: false);
             }
             else
             {
+                lock (_renderLinesLock)
+                {
+                    if (_renderLines.Count > 0 && _currentLineIndex >= 0 && _currentLineIndex < _renderLines.Count)
+                    {
+                        double targetScroll = -_renderLines[_currentLineIndex].PrimaryCenterY;
+                        foreach (RenderLineState line in _renderLines)
+                        {
+                            line.YOffset.SetDelay(0);
+                            line.YOffset.JumpTo(targetScroll);
+                        }
+                    }
+                }
                 _manualScrollTransition.JumpTo(0);
                 _manualBrowseVisibility = 0;
                 _lastCurrentLineIndex = -1;
@@ -487,35 +518,73 @@ namespace SightoHear.Services.Lyrics
 
         private void UpdateCurrentLine()
         {
+            // 滚动锚点走「滚动锚点时间轴」（含视觉提前量），与视觉选中态用的开唱时间轴分离
             _currentLineIndex = FindCurrentLineIndex(LyricsTimeMs);
         }
 
+        /// <summary>
+        /// 自动跟随滚动的核心调度（每行独立 YOffsetTransition）：
+        /// - 布局/首帧：所有行直接 JumpTo 目标（无动画）。
+        /// - 行切换：每一行按"到当前行的行距"获得自己的延迟与时长，各自从旧位置滚到新目标——
+        ///   近行先动、远行后动，形成逐行接力/波浪的交错滚动（每行有自己的滚动曲线）。
+        /// </summary>
         private void UpdateScrollTarget(bool isLayoutPass)
         {
-            double target;
             lock (_renderLinesLock)
             {
                 if (_renderLines.Count == 0 || _currentLineIndex < 0 || _currentLineIndex >= _renderLines.Count)
                     return;
-                target = -_renderLines[_currentLineIndex].PrimaryCenterY;
-            }
-            if (isLayoutPass || _lastCurrentLineIndex < 0)
-            {
-                _scrollTransition.JumpTo(target);
-            }
-            else if (_lastCurrentLineIndex != _currentLineIndex)
-            {
-                _scrollTransition.Start(target);
-                if (_isManualScrolling &&
-                    Environment.TickCount64 > _manualScrollUntilTick &&
-                    Math.Abs(_manualScrollTransition.TargetValue) <= AutoFollowResumeDistance)
-                {
-                    _isManualScrolling = false;
-                    _manualScrollTransition.Start(0);
-                }
-            }
 
-            _lastCurrentLineIndex = _currentLineIndex;
+                RenderLineState currentLine = _renderLines[_currentLineIndex];
+                double target = -currentLine.PrimaryCenterY;
+
+                if (isLayoutPass || _lastCurrentLineIndex < 0)
+                {
+                    foreach (RenderLineState line in _renderLines)
+                    {
+                        line.YOffset.SetDelay(0);
+                        line.YOffset.SetDuration(ScrollDurationSeconds);
+                        line.YOffset.JumpTo(target);
+                    }
+                    _lastCurrentLineIndex = _currentLineIndex;
+                    return;
+                }
+
+                if (_lastCurrentLineIndex != _currentLineIndex)
+                {
+                    bool stagger = EnableAdvancedRendering && EnableAdvInterleaveScroll;
+                    for (int i = 0; i < _renderLines.Count; i++)
+                    {
+                        RenderLineState line = _renderLines[i];
+                        if (stagger)
+                        {
+                            // 交错滚动：每一行拥有自己的滚动曲线——
+                            // 距当前行越远的行启动延迟越大、滚动时长越长，逐行接力滚动
+                            int rowDist = Math.Abs(i - _currentLineIndex);
+                            double delay = Math.Min(0.5, rowDist * 0.06);
+                            double duration = Math.Clamp(ScrollDurationSeconds + rowDist * 0.05, ScrollDurationSeconds, 0.65);
+                            line.YOffset.SetDuration(duration);
+                            line.YOffset.SetDelay(delay);
+                        }
+                        else
+                        {
+                            line.YOffset.SetDuration(ScrollDurationSeconds);
+                            line.YOffset.SetDelay(0);
+                        }
+                        // 目标相同会自动跳过（Start 内部判断），仅当值实际变化时启动动画
+                        line.YOffset.Start(target);
+                    }
+                    if (_isManualScrolling &&
+                        Environment.TickCount64 > _manualScrollUntilTick &&
+                        Math.Abs(_manualScrollTransition.TargetValue) <= AutoFollowResumeDistance)
+                    {
+                        _isManualScrolling = false;
+                        _manualScrollTransition.Start(0);
+                    }
+                }
+
+                _lastCurrentLineIndex = _currentLineIndex;
+            }
         }
 
         private void UpdateLineVisualTargets(bool force = false)
@@ -528,6 +597,10 @@ namespace SightoHear.Services.Lyrics
                 double currentCenter = _renderLines[_currentLineIndex].PrimaryCenterY;
                 double topRange = Math.Max(1, _lyricsHeight * CurrentLineAnchor);
                 double bottomRange = Math.Max(1, _lyricsHeight * (1 - CurrentLineAnchor));
+
+                // 交错滚动：换行时各行视觉过渡（缩放/透明度）按行距渐次延迟启动，
+                // 远离当前行的行稍晚到位，形成"波浪追尾"的交错效果（参考 AMLL calcLayout 的 delay 递增）。
+                bool staggerEnabled = EnableAdvancedRendering && EnableAdvInterleaveScroll;
 
                 for (int i = 0; i < _renderLines.Count; i++)
                 {
@@ -556,7 +629,11 @@ namespace SightoHear.Services.Lyrics
                     ? CurrentScale
                     : Lerp(CurrentScale - distanceFactor * (CurrentScale - NormalScale), 0.88, browse);
 
-                line.StartVisualTargets(scale, playedOpacity, unplayedOpacity, secondaryOpacity, tertiaryOpacity, force);
+                double staggerDelay = staggerEnabled
+                    ? Math.Min(0.45, Math.Abs(i - _currentLineIndex) * 0.05)
+                    : 0;
+
+                line.StartVisualTargets(scale, playedOpacity, unplayedOpacity, secondaryOpacity, tertiaryOpacity, force, staggerDelay);
                 }
             }
         }
@@ -1202,7 +1279,7 @@ namespace SightoHear.Services.Lyrics
 
                 double currentCenter = _renderLines[_currentLineIndex].PrimaryCenterY;
                 double currentToLast = currentCenter - _renderLines[^1].PrimaryCenterY - _lyricsHeight * 0.35;
-                double keepLastReachable = _lyricsHeight * (1 - CurrentLineAnchor) - _totalFlowHeight - _scrollTransition.TargetValue;
+                double keepLastReachable = _lyricsHeight * (1 - CurrentLineAnchor) - _totalFlowHeight - _renderLines[_currentLineIndex].YOffset.TargetValue;
                 return Math.Min(0, Math.Min(currentToLast, keepLastReachable));
             }
         }
@@ -1216,7 +1293,7 @@ namespace SightoHear.Services.Lyrics
 
                 double currentCenter = _renderLines[_currentLineIndex].PrimaryCenterY;
                 double currentToFirst = currentCenter - _renderLines[0].PrimaryCenterY + _lyricsHeight * 0.35;
-                double keepFirstReachable = _lyricsHeight * CurrentLineAnchor + _scrollTransition.TargetValue;
+                double keepFirstReachable = _lyricsHeight * CurrentLineAnchor + _renderLines[_currentLineIndex].YOffset.TargetValue;
                 return Math.Max(0, Math.Max(currentToFirst, keepFirstReachable));
             }
         }
@@ -1423,7 +1500,7 @@ namespace SightoHear.Services.Lyrics
             return Color.FromArgb(alpha, 255, 255, 255);
         }
 
-        private sealed class RenderLineState : IDisposable
+        private sealed partial class RenderLineState : IDisposable
         {
             // ★ 缓存的文字遮罩 CommandList，避免每帧重建（文本不变时复用）
             private CanvasCommandList? _cachedMask;
@@ -1454,6 +1531,9 @@ namespace SightoHear.Services.Lyrics
             public double SecondaryTop { get; set; }
             public double TertiaryTop { get; set; }
             public double VisualBottom { get; set; }
+            // ★ 每行独立滚动偏移（交错滚动核心）：行切换时各行动画按行距有不同的延迟/时长/曲线，
+            //   互不干扰逐行到位；目标统一为"当前行中心对齐锚点"。
+            public DoubleTransition YOffset { get; } = new(0, ScrollDurationSeconds);
             public DoubleTransition Scale { get; } = new(CurrentScale, VisualDurationSeconds);
             public DoubleTransition PlayedOpacity { get; } = new(0, VisualDurationSeconds);
             public DoubleTransition UnplayedOpacity { get; } = new(0, VisualDurationSeconds);
@@ -1574,17 +1654,18 @@ namespace SightoHear.Services.Lyrics
                 // float offset is computed in real-time from play progress in DrawCurrentPrimary.
             }
 
-            public void StartVisualTargets(double scale, double playedOpacity, double unplayedOpacity, double secondaryOpacity, double tertiaryOpacity, bool force)
+            public void StartVisualTargets(double scale, double playedOpacity, double unplayedOpacity, double secondaryOpacity, double tertiaryOpacity, bool force, double delaySeconds = 0)
             {
-                StartOrJump(Scale, scale, force);
-                StartOrJump(PlayedOpacity, playedOpacity, force);
-                StartOrJump(UnplayedOpacity, unplayedOpacity, force);
-                StartOrJump(SecondaryOpacity, secondaryOpacity, force);
-                StartOrJump(TertiaryOpacity, tertiaryOpacity, force);
+                StartOrJump(Scale, scale, force, delaySeconds);
+                StartOrJump(PlayedOpacity, playedOpacity, force, delaySeconds);
+                StartOrJump(UnplayedOpacity, unplayedOpacity, force, delaySeconds);
+                StartOrJump(SecondaryOpacity, secondaryOpacity, force, delaySeconds);
+                StartOrJump(TertiaryOpacity, tertiaryOpacity, force, delaySeconds);
             }
 
             public void Update(TimeSpan elapsedTime)
             {
+                YOffset.Update(elapsedTime);
                 Scale.Update(elapsedTime);
                 PlayedOpacity.Update(elapsedTime);
                 UnplayedOpacity.Update(elapsedTime);
@@ -1628,8 +1709,9 @@ namespace SightoHear.Services.Lyrics
                 _cachedMask = null;
             }
 
-            private static void StartOrJump(DoubleTransition transition, double value, bool force)
+            private static void StartOrJump(DoubleTransition transition, double value, bool force, double delaySeconds = 0)
             {
+                transition.SetDelay(delaySeconds);
                 if (force)
                     transition.JumpTo(value);
                 else if (Math.Abs(transition.TargetValue - value) > 0.005)
@@ -1652,12 +1734,15 @@ namespace SightoHear.Services.Lyrics
 
         private class DoubleTransition
         {
-            protected readonly double _durationSeconds;
+            protected double _durationSeconds;
             protected double _startValue;
             protected double _currentValue;
             protected double _targetValue;
             protected double _progress;
             protected bool _isRunning;
+            private double _delaySeconds;
+            private double _elapsedDelay;
+            private bool _isDelaying;
 
             public DoubleTransition(double initialValue, double durationSeconds)
             {
@@ -1670,6 +1755,12 @@ namespace SightoHear.Services.Lyrics
             public double Value => _currentValue;
             public double TargetValue => _targetValue;
 
+            /// <summary>调整过渡时长（秒）——交错滚动按行距动态调整滚动时长用。</summary>
+            public void SetDuration(double seconds) => _durationSeconds = Math.Max(0.001, seconds);
+
+            /// <summary>设置下一次 Start 的启动延迟（秒）。延迟期间保持当前值不变。</summary>
+            public void SetDelay(double seconds) => _delaySeconds = Math.Max(0, seconds);
+
             public virtual void JumpTo(double value)
             {
                 _startValue = value;
@@ -1677,6 +1768,7 @@ namespace SightoHear.Services.Lyrics
                 _targetValue = value;
                 _progress = 1;
                 _isRunning = false;
+                _isDelaying = false;
             }
 
             public virtual void Start(double value)
@@ -1687,11 +1779,32 @@ namespace SightoHear.Services.Lyrics
                 _startValue = _currentValue;
                 _targetValue = value;
                 _progress = 0;
-                _isRunning = true;
+                // 需要延迟且值确实在变化时：先进入等待态，延迟结束后再开始插值
+                if (_delaySeconds > 0.0005 && Math.Abs(_currentValue - value) > 0.001)
+                {
+                    _isDelaying = true;
+                    _elapsedDelay = 0;
+                    _isRunning = false;
+                }
+                else
+                {
+                    _isDelaying = false;
+                    _isRunning = true;
+                }
             }
 
             public virtual void Update(TimeSpan elapsedTime)
             {
+                if (_isDelaying)
+                {
+                    _elapsedDelay += elapsedTime.TotalSeconds;
+                    if (_elapsedDelay < _delaySeconds)
+                        return;
+                    _isDelaying = false;
+                    _startValue = _currentValue;
+                    _progress = 0;
+                    _isRunning = true;
+                }
                 if (!_isRunning)
                     return;
 

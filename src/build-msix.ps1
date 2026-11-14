@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 SightoHear MSIX 打包脚本（纯命令行，无需 Visual Studio）
 
@@ -132,7 +132,10 @@ Write-Host "MSIX 包版本 : $MsixVersion（来自 SightoHear.csproj）" -Foregr
 if (-not $SkipBuild) {
     Write-Host "`n========== 1/6 构建 $Configuration | $Platform ==========" -ForegroundColor Cyan
     Stop-Process -Name $ExeName -Force -ErrorAction SilentlyContinue
-    dotnet build $ProjectFile -c $Configuration /p:Platform=$Platform -v minimal
+    # ★ /p:SightoHearMsix=true 让 csproj 里的 SlimDistributionOutput 与 PublishAot 跳过：
+    #   MSIX 打包需要 .winmd / 语言资源 / AppxManifest 参与 makeappx 与 resources.pri 生成，
+    #   瘦身会破坏打包（缺文件 → 安装后缺资源）。详见 csproj 中该 Target 的说明。
+    dotnet build $ProjectFile -c $Configuration /p:Platform=$Platform /p:SightoHearMsix=true -v minimal
     if ($LASTEXITCODE -ne 0) { throw "构建失败（退出码 $LASTEXITCODE）" }
 } else {
     Write-Host "`n========== 1/6 跳过构建（-SkipBuild） ==========" -ForegroundColor Cyan

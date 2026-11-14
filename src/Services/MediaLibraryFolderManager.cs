@@ -100,16 +100,14 @@ namespace SightoHear.Services
                 foreach (string path in folders.Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     if (!string.IsNullOrWhiteSpace(path))
-                        arr.Add(path);
+                        // ★ 不能用 arr.Add(path)：AOT 下泛型重载会走 ConvertFromValue 并失败
+                        JsonNodeHelper.AddString(arr, path);
                 }
                 node[GetEnabledKey(mediaType)] = arr;
 
                 Directory.CreateDirectory(Path.GetDirectoryName(MediaScanner.SettingsPath)!);
-                File.WriteAllText(MediaScanner.SettingsPath, node.ToJsonString(new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-                }));
+                // ★ Native AOT：JsonNode 序列化必须绑定源生成上下文
+                File.WriteAllText(MediaScanner.SettingsPath, JsonNodeHelper.ToJson(node));
                 AppLogger.Info($"媒体库文件夹勾选状态已保存: {mediaType} 共 {arr.Count} 个");
             }
             catch (Exception ex)
@@ -265,16 +263,14 @@ namespace SightoHear.Services
                 foreach (string path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     if (!string.IsNullOrWhiteSpace(path))
-                        arr.Add(path);
+                        // ★ 不能用 arr.Add(path)：AOT 下泛型重载会走 ConvertFromValue 并失败
+                        JsonNodeHelper.AddString(arr, path);
                 }
                 node[GetLibraryKey(mediaType)] = arr;
 
                 Directory.CreateDirectory(Path.GetDirectoryName(MediaScanner.SettingsPath)!);
-                File.WriteAllText(MediaScanner.SettingsPath, node.ToJsonString(new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-                }));
+                // ★ Native AOT：JsonNode 序列化必须绑定源生成上下文
+                File.WriteAllText(MediaScanner.SettingsPath, JsonNodeHelper.ToJson(node));
             }
             catch (Exception ex)
             {

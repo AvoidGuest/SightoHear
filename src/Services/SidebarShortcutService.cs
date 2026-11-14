@@ -47,7 +47,8 @@ namespace SightoHear.Services
                     if (File.Exists(FilePath))
                     {
                         var json = File.ReadAllText(FilePath);
-                        _shortcuts = JsonSerializer.Deserialize<List<SidebarShortcut>>(json)
+                        // ★ Native AOT：走源生成上下文（反射式重载在 AOT 下不可用）
+                        _shortcuts = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListSidebarShortcut)
                                      ?? new List<SidebarShortcut>();
                         AppLogger.Debug($"侧边栏快捷方式加载: {_shortcuts.Count} 个");
                     }
@@ -70,7 +71,8 @@ namespace SightoHear.Services
                     var dir = Path.GetDirectoryName(FilePath);
                     if (!string.IsNullOrEmpty(dir))
                         Directory.CreateDirectory(dir);
-                    File.WriteAllText(FilePath, JsonSerializer.Serialize(_shortcuts));
+                    File.WriteAllText(FilePath,
+                        JsonSerializer.Serialize(_shortcuts, AppJsonContext.Default.ListSidebarShortcut));
                 }
                 catch (Exception ex)
                 {

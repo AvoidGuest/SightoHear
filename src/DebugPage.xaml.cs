@@ -157,8 +157,8 @@ namespace SightoHear
                 node["DebugSettings"] = debug;
                 AppLogger.Info($"日志设置变更: 启用={LogEnabledToggle.IsOn}, 级别={LogLevelComboBox.SelectedIndex}, 保护敏感信息={ProtectSensitiveToggle.IsOn}, 自动清理={AutoCleanToggle.IsOn}, 清理天数={CleanDaysNumberBox.Value}, 开发者模式={DevModeToggle.IsOn}, Win2D悬浮窗={Win2DPerfEnabledToggle.IsOn}");
 
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                File.WriteAllText(_settingsPath, node.ToJsonString(options));
+                // ★ Native AOT：JsonNode 序列化必须绑定源生成上下文
+                File.WriteAllText(_settingsPath, Services.JsonNodeHelper.ToJson(node));
                 ApplyLoggerSettings();
             }
             catch { }

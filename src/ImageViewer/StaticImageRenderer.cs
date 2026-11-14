@@ -14,7 +14,7 @@ namespace SightoHear.ImageViewer
     /// 持有源 <see cref="CanvasBitmap"/> 并为其生成 mipmap 金字塔（0.5×/0.25×/0.125×…）。
     /// 缩放缩小时自动选用"尺寸仍不小于显示尺寸"的最小 mip 层，避免逐像素采样闪烁，动画平滑。
     /// </summary>
-    internal sealed class StaticImageRenderer : IDisposable
+    internal sealed partial class StaticImageRenderer : IDisposable
     {
         private readonly CanvasBitmap _sourceBitmap;
         private readonly Action _invalidateCanvas;

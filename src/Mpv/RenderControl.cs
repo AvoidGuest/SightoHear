@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -216,8 +216,14 @@ public sealed unsafe partial class RenderControl : OpenGLRenderControlBase<Frame
                 {
                     try
                     {
-                        _swapChainPanel!.As<ISwapChainPanelNative>().SetSwapChain(scHandle);
-                        _pendingFbBound = true; // volatile，渲染线程下帧可见
+                        // ★ Native AOT：不能用 _swapChainPanel.As<ISwapChainPanelNative>()
+                        // （手写 [ComImport] 接口 + 开放泛型 As<T> 在 AOT 下必抛
+                        //   NotSupportedException: COM Interop requires ComWrapper instance registered），
+                        // 改为虚表函数指针直接调用。详见 Mpv/ISwapChainPanelNative.cs。
+                        if (!SwapChainPanelNative.SetSwapChain(_swapChainPanel!, scHandle))
+                            Helpers.AppLogger.Warning("libmpv绑定新交换链失败（SwapChainPanelNative 返回 false）");
+                        else
+                            _pendingFbBound = true; // volatile，渲染线程下帧可见
                     }
                     catch (Exception ex)
                     {
@@ -317,7 +323,19 @@ public sealed unsafe partial class RenderControl : OpenGLRenderControlBase<Frame
         if (ActualWidth <= 0 || ActualHeight <= 0) return false;
 
         FrameBuffer = new FrameBuffer(Context, (int)ActualWidth, (int)ActualHeight, ScaleX, ScaleY);
-        _swapChainPanel!.As<ISwapChainPanelNative>().SetSwapChain(FrameBuffer.SwapChainHandle);
+
+        // ★ Native AOT：替代 _swapChainPanel.As<ISwapChainPanelNative>().SetSwapChain(...)，
+        // 原因见 Mpv/ISwapChainPanelNative.cs 顶部说明。
+        if (!SwapChainPanelNative.SetSwapChain(_swapChainPanel!, FrameBuffer.SwapChainHandle))
+        {
+            // 绑定失败就不要留下一个"看似可用"的 FrameBuffer：
+            // 否则渲染回调会持续往未挂到 XAML 树上的交换链里画，表现为黑屏且无报错。
+            Helpers.AppLogger.Warning("libmpv：初始帧缓冲绑定交换链失败，放弃本次帧缓冲");
+            FrameBuffer.Dispose();
+            FrameBuffer = null;
+            return false;
+        }
+
         return true;
     }
 }

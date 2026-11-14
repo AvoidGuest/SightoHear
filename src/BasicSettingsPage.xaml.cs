@@ -152,7 +152,17 @@ namespace SightoHear
         }
 
         /// <summary>GPU 选项卡的数据项：跟随系统 或 指定 GPU。</summary>
-        private sealed class GpuSelectionItem
+        /// <remarks>
+        /// ★ Native AOT：本类型被 BasicSettingsPage.xaml 的
+        /// <c>&lt;ComboBox DisplayMemberPath="DisplayName"&gt;</c> 以**经典反射绑定**方式访问。
+        /// AOT 下没有运行时反射来合成 ICustomProperty，必须由 CsWinRT 源生成器在编译期生成访问器，
+        /// 否则展开下拉框时会抛 NotSupportedException → 进程 0xC000027B 闪退。
+        ///
+        /// 两个条件缺一不可（漏掉 partial 时源生成器不报错也不生成代码，症状与没加特性完全一致）：
+        ///   ① 加 [WinRT.GeneratedBindableCustomProperty]；② 类型声明 partial。
+        /// </remarks>
+        [WinRT.GeneratedBindableCustomProperty]
+        private sealed partial class GpuSelectionItem
         {
             public bool IsSystem { get; init; }
             public Win2DDeviceManager.GpuAdapterInfo? Gpu { get; init; }
@@ -240,13 +250,10 @@ namespace SightoHear
 
                 Directory.CreateDirectory(
                     Path.GetDirectoryName(MediaScanner.SettingsPath)!);
+                // ★ Native AOT：JsonNode 序列化必须绑定源生成上下文
                 File.WriteAllText(
                     MediaScanner.SettingsPath,
-                    node.ToJsonString(new JsonSerializerOptions
-                    {
-                        WriteIndented = true,
-                        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-                    }));
+                    JsonNodeHelper.ToJson(node));
             }
             catch
             {
@@ -258,7 +265,8 @@ namespace SightoHear
         {
             var result = new JsonArray();
             foreach (string path in paths)
-                result.Add(path);
+                // ★ 不能用 result.Add(path)：AOT 下泛型重载会走 ConvertFromValue 并失败
+                JsonNodeHelper.AddString(result, path);
             return result;
         }
 

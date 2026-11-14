@@ -7,6 +7,7 @@
 [Bb]in/
 [Oo]bj/
 artifacts/
+.temp-preview/
 [Ll]og/
 [Ll]ogs/
 

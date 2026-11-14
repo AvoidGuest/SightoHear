@@ -431,7 +431,7 @@ namespace SightoHear.Services.Lyrics
         }
     }
 
-    public sealed class RenderLyricsRegion : IDisposable
+    public sealed partial class RenderLyricsRegion : IDisposable
     {
         public CanvasGradientStop[] FillStops { get; } = new CanvasGradientStop[4];
         public CanvasGradientStop[] StrokeStops { get; } = new CanvasGradientStop[4];

@@ -16,7 +16,7 @@ namespace SightoHear
         /// 格式：语义化版本 + 括号内无点数字（四段版本号连写）。
         /// 例如 v0.2.0-beta (0200)，其中 0200 = 程序集四段版本 0.2.0.0 去掉点号。
         /// </summary>
-        private const string DefaultVersionDisplay = "v0.3.2-beta (0320)";
+        private const string DefaultVersionDisplay = "v0.4.0 (0400)";
 
         public AboutPage()
         {

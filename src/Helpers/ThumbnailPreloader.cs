@@ -16,7 +16,7 @@ namespace SightoHear.Helpers
     /// 预加载器在后台线程上以阶梯速率（intervalMs 间隔）逐张加载，
     /// 确保不阻塞 UI。页面卸载时取消。
     /// </summary>
-    public sealed class ThumbnailPreloader : IDisposable
+    public sealed partial class ThumbnailPreloader : IDisposable
     {
         private readonly int _intervalMs;
         private readonly uint _thumbnailSize;

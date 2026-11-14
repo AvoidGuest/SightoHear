@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <RootNamespace>SightoHear</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -62,6 +62,50 @@
          显式指向 NuGet 缓存中 Microsoft.Windows.SDK.NET.Ref 10.0.26100.57 的 winmd 目录，
          供 FFmpegInteropX 2.1.0 的 CsWinRT 投影生成使用。 -->
     <CsWinRTWindowsMetadata>$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.26100.57\winmd</CsWinRTWindowsMetadata>
+
+    <!-- ==================== Native AOT（.NET 10）====================
+         publish 时用 ILCompiler 把 IL 直接编译成本机代码，产物无 JIT，收益实测：
+           · 启动到首帧窗口：约 1950ms → 约 1040ms（约 -47%）
+           · 分发体积（不含 pdb）：约 503MB → 约 332MB（-34%）
+           · 常驻内存：约 231MB → 约 150MB（-35%）
+         注意：AOT 只在 `dotnet publish` 时生效，`dotnet build` 仍产出普通托管程序（便于 F5 调试）。
+
+         ★ MSIX 打包注意：AOT 与 MSIX 打包的组合尚未在本项目验证。
+           打包流程走 build-msix.ps1（dotnet publish → makeappx → 签名），
+           若开启 PublishAot，产物是本机 exe，AppxManifest/资源布局需另行验证。
+
+         两项配套开关不可省：
+           · CsWinRT AOT 优化器：Windows App SDK 要求显式置 true 才支持 PublishAot
+             （否则构建报 "requires CsWinRTAotOptimizerEnabled set to true"）。
+           · 运行时开关见下方 Publish Properties：PublishTrimmed 由 AOT 隐含，不能显式关闭。 -->
+    <PublishAot Condition="'$(Configuration)' != 'Debug' and '$(SightoHearMsix)' != 'true'">true</PublishAot>
+    <CsWinRTAotOptimizerEnabled>true</CsWinRTAotOptimizerEnabled>
+    <!-- CsWinRT 的 AOT 分析器级别（0=关，1=默认，2=同时检查内建 WinRT 映射类型）。
+         Level 1 只是为避免噪声的默认值，Level 2 才是应当启用并逐条评估的级别。 -->
+    <CsWinRTAotWarningLevel Condition="'$(PublishAot)' == 'true'">2</CsWinRTAotWarningLevel>
+    <!-- ★ 体积优化：实测 SightoHear.exe 由 37.0MB 降至 29.6MB（-20%）。
+         原理：ILCompiler 改传优化代码尺寸的开关，而不是优化执行速度的开关。
+         只影响 AOT 生成的本机代码，对 libmpv / ONNX / DirectML 等原生 DLL 无效果。
+         需要改回速度优先时：dotnet publish -c Release -p:OptimizationPreference=Speed -->
+    <OptimizationPreference Condition="'$(PublishAot)' == 'true'">Size</OptimizationPreference>
+    <!-- ★ AOT 审计（默认关闭）：开启后编译器会把所有 Trim/AOT 兼容性警告全量打印。
+         实测本项目会产生 90 条 IL3058 + 49 条 IL3050 + 31 条 IL2070 等约 250 条，
+         其中绝大多数来自第三方 WinRT 投影程序集与 CommunityToolkit / Newtonsoft，
+         无法在本项目内修复。只在需要重新评估依赖时手动开启：-p:AotAudit=true
+         注意 VerifyReferenceAotCompatibility 依赖 .NET 10 引入的程序集级 IsAotCompatible
+         元数据；旧版编译的库即使 AOT 下实际可用，也会因缺少该标记而被报 IL3058。 -->
+    <IsAotCompatible Condition="'$(AotAudit)' == 'true'">true</IsAotCompatible>
+    <EnableAotAnalyzer Condition="'$(AotAudit)' == 'true'">true</EnableAotAnalyzer>
+    <EnableTrimAnalyzer Condition="'$(AotAudit)' == 'true'">true</EnableTrimAnalyzer>
+    <VerifyReferenceAotCompatibility Condition="'$(AotAudit)' == 'true'">true</VerifyReferenceAotCompatibility>
+    <TrimmerSingleWarn Condition="'$(AotAudit)' == 'true'">false</TrimmerSingleWarn>
+    <!-- AOT 产物默认生成同名 .pdb（本项目约 164MB，纯调试符号，运行时完全不需要）。
+         build.ps1 默认把它移到 bin\Symbols\ 并重命名带版本号，不随可运行目录分发。 -->
+    <StripSymbols>false</StripSymbols>
+    <!-- ★ 注意：不要设置 <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>。
+         Native AOT 默认已关闭反射式 JSON，本项目已全面改用源生成（Services/AppJsonContext.cs）。
+         实测把该属性显式写 false 会破坏 Windows App SDK 自身的启动路径
+         （Microsoft.UI.Xaml.dll 在 Application.Start 阶段崩溃 0xC000027B），切勿加回。 -->
   </PropertyGroup>
 
   <!-- ==================== 版本号（单一事实来源） ====================
@@ -72,9 +116,9 @@
        MSIX 注意：同一应用只能升不能降，测试期每次打包必须递增版本号。
        AssemblyVersion/FileVersion 必须是纯数字四段（a.b.c.d，0~65535）。 -->
   <PropertyGroup>
-    <Version>0.3.2-beta</Version>
-    <AssemblyVersion>0.3.2.0</AssemblyVersion>
-    <FileVersion>0.3.2.0</FileVersion>
+    <Version>0.4.0</Version>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -189,18 +233,29 @@
   <!-- Publish Properties -->
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed>False</PublishTrimmed>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug' and '$(PublishAot)' != 'true'">True</PublishReadyToRun>
+    <!-- Native AOT 隐含 PublishTrimmed=true，显式写 False 会被 ILCompiler 拒绝；仅在非 AOT 时关闭裁剪。 -->
+    <PublishTrimmed Condition="'$(PublishAot)' != 'true'">False</PublishTrimmed>
   </PropertyGroup>
 
   <!-- 关键修复：SkiaSharp.NativeAssets.WinUI 传递引入的 ANGLE（libEGL.dll + libGLESv2.dll，OpenGL ES 实现）
        会与 libmpv 的桌面 OpenGL 渲染上下文冲突，导致超分模式 mpv_render_context_create 阶段
        AccessViolationException 崩溃（0xC0000005，经 Demo 判别实验确认根因）。
        本项目 SkiaSharp 仅用于 CPU 光栅化（封面/缩略图/裁剪），不使用 SKXamlCanvas GL 表面，
-       ANGLE 纯冗余，故从输出中移除；SkiaSharp.Views.WinUI.Native.* 为 WinUI 绑定核心，必须保留。 -->
+       ANGLE 纯冗余，故从输出中移除；SkiaSharp.Views.WinUI.Native.* 为 WinUI 绑定核心，必须保留。
+
+       ★ 必须同时对 $(TargetDir) 与 $(PublishDir) 生效：
+         发布流程（build-msix.ps1 / build.ps1 -Aot）是「发布到另一目录 → 再拷进 bin」，
+         只处理 TargetDir 会让最终那份额外残留 ANGLE，超分模式崩 0xC0000005。 -->
   <Target Name="RemoveSkiaSharpAngleNativeLibs" AfterTargets="Build;Publish">
+    <PropertyGroup>
+      <_PublishDirSlash>$(PublishDir)</_PublishDirSlash>
+      <_PublishDirSlash Condition="'$(_PublishDirSlash)' != '' and !HasTrailingSlash('$(_PublishDirSlash)')">$(_PublishDirSlash)\</_PublishDirSlash>
+    </PropertyGroup>
     <ItemGroup>
       <_AngleNativeDlls Include="$(TargetDir)libEGL.dll;$(TargetDir)libGLESv2.dll" />
+      <_AngleNativeDlls Include="$(_PublishDirSlash)libEGL.dll;$(_PublishDirSlash)libGLESv2.dll"
+                        Condition="'$(_PublishDirSlash)' != ''" />
     </ItemGroup>
     <Delete Files="@(_AngleNativeDlls)" />
   </Target>
@@ -220,11 +275,131 @@
        仅 x64 平台复制：VapourSynth 便携运行时与 MVTools/SVPFlow 插件均为 x64 二进制，
        ARM64 平台（进程原生 ARM64）无法加载，运行时由代码层禁用运动补偿。 -->
   <Target Name="CopyVapourSynthRuntime" AfterTargets="Build;Publish" Condition="'$(Platform)' == 'x64'">
+    <PropertyGroup>
+      <_VsPublishDirSlash>$(PublishDir)</_VsPublishDirSlash>
+      <_VsPublishDirSlash Condition="'$(_VsPublishDirSlash)' != '' and !HasTrailingSlash('$(_VsPublishDirSlash)')">$(_VsPublishDirSlash)\</_VsPublishDirSlash>
+    </PropertyGroup>
     <ItemGroup>
       <_VsRuntimeFiles Include="Assets\Mpv\VapourSynth\**\*" />
     </ItemGroup>
+    <!-- 构建输出（bin\...） -->
     <Copy SourceFiles="@(_VsRuntimeFiles)"
           DestinationFiles="@(_VsRuntimeFiles->'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
+    <!-- ★ 发布输出：发布到 staging 后再拷进 bin 的流程里，
+         若不复制到这里，最终包的根目录会缺 VSScript.dll / python312 等，
+         导致超分模式的「运动补偿补帧」整段失效。 -->
+    <Copy SourceFiles="@(_VsRuntimeFiles)"
+          DestinationFiles="@(_VsRuntimeFiles->'$(_VsPublishDirSlash)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'$(_VsPublishDirSlash)' != ''" />
+  </Target>
+
+  <!-- ==================== 分发目录瘦身（SlimDistributionOutput）====================
+       目标：让输出目录里能一眼找到 SightoHear.exe，而不是淹在几百个文件里。
+       实测（x64 Release AOT，非打包）：365 个文件 / 343.7 MB → 119 个文件 / 332.4 MB。
+
+       ★ 每一条都做过「删除后实际运行 + 遍历所有页面 + 播放视频」验证：
+
+       1) *.winmd（52 个）        Windows Runtime 元数据，只供编译期生成投影用，运行时不读。
+       2) *.lib（8 个）           FFmpeg/libmpv 的导入库，只供链接期使用，运行时只需要 .dll。
+       3) 语言目录（76 → 5）      Windows App SDK / WinUI 自带的 .mui 本地化错误串。
+                                  本项目自身没有任何 .resw 本地化资源，界面文案全部硬编码中文。
+                                  只保留 zh-CN / zh-TW / en-us / en-GB / ja-JP。
+       4) Microsoft.Windows.AI.*（6 个）+ Microsoft.Windows.Workloads.*（4 个）
+                                  Windows App SDK 的可选 AI / 工作负载组件。本项目用
+                                  ONNX Runtime + DirectML 自己做超分，从不实例化这些 WinRT 类型。
+       5) workloads.*.json（6 个）同上的配置清单。
+       6) NPUDetect / WebView2Loader / RestartAgent.exe / Microsoft.UI.Designer.dll
+                                  SDK 附带的工具型二进制，本项目不调用。
+       7) 后台任务/推送/会话 IPC 的 ProxyStub 3 个：非打包应用不用。
+
+       ★ MSIX 打包模式下不执行瘦身：
+         AppxManifest 的 PackageDependency、.winmd、语言资源都参与 makeappx 打包与
+         resources.pri 生成，删掉会破坏打包或安装后缺资源。
+         通过 -p:SightoHearMsix=true 让 build-msix.ps1 显式跳过（见 Condition）。
+
+       ★ 绝对不能删（删了就起不来 / 功能失效，均已实测）：
+         WinUIEdit.dll              XAML 编辑/输入核心，删掉进程直接起不来。
+         Microsoft.UI.Xaml.Internal.dll、Microsoft.ui.xaml.resources.*.dll
+         Microsoft.UI.Xaml.Phone.dll
+         libmpv-2.dll、onnxruntime.dll、DirectML.dll、python312*、VSScript.dll
+         Microsoft.Graphics.Canvas.dll（Win2D）、libSkiaSharp.dll、FFmpegInteropX.dll -->
+  <Target Name="SlimDistributionOutput" AfterTargets="Build;Publish"
+          Condition="'$(SightoHearMsix)' != 'true'">
+    <!-- PublishDir 在 Build 阶段可能为空，此时只处理 TargetDir -->
+    <PropertyGroup>
+      <_SlimPublishDir>$(PublishDir)</_SlimPublishDir>
+      <_SlimPublishDir Condition="'$(_SlimPublishDir)' != '' and !HasTrailingSlash('$(_SlimPublishDir)')">$(_SlimPublishDir)\</_SlimPublishDir>
+    </PropertyGroup>
+
+    <!-- ① 元数据 / 链接期文件（递归，覆盖 libmpv\win-x64\libmpv.lib 这类子目录里的 .lib） -->
+    <ItemGroup>
+      <_SlimMetadataFiles Include="$(TargetDir)**\*.winmd;$(TargetDir)**\*.lib" />
+      <_SlimMetadataFiles Include="$(_SlimPublishDir)**\*.winmd;$(_SlimPublishDir)**\*.lib"
+                          Condition="'$(_SlimPublishDir)' != ''" />
+    </ItemGroup>
+    <Delete Files="@(_SlimMetadataFiles)" />
+
+    <!-- ② 非必需的可选组件（按确切文件名，不用通配符，避免误删同名新依赖） -->
+    <ItemGroup>
+      <_SlimOptionalNames Include="Microsoft.Windows.AI.AICapabilities.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.AI.ContentSafety.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.AI.Imaging.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.AI.MachineLearning.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.AI.Text.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.AI.Video.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.Workloads.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.Workloads.pri" />
+      <_SlimOptionalNames Include="Microsoft.Windows.Workloads.Resources.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.Workloads.Resources_ec.dll" />
+      <_SlimOptionalNames Include="NPUDetect.dll" />
+      <_SlimOptionalNames Include="WebView2Loader.dll" />
+      <_SlimOptionalNames Include="RestartAgent.exe" />
+      <_SlimOptionalNames Include="Microsoft.UI.Designer.dll" />
+      <_SlimOptionalNames Include="Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.dll" />
+      <_SlimOptionalNames Include="PushNotificationsLongRunningTask.ProxyStub.dll" />
+      <_SlimOptionalNames Include="SessionHandleIPCProxyStub.dll" />
+      <_SlimOptionalNames Include="workloads.365.json" />
+      <_SlimOptionalNames Include="workloads.j32.json" />
+      <_SlimOptionalNames Include="workloads.json" />
+      <_SlimOptionalNames Include="workloads.lnl.json" />
+      <_SlimOptionalNames Include="workloads.qnn.json" />
+      <_SlimOptionalNames Include="workloads.stx.json" />
+    </ItemGroup>
+    <ItemGroup>
+      <_SlimOptionalFiles Include="@(_SlimOptionalNames->'$(TargetDir)%(Identity)')" />
+      <_SlimOptionalFiles Include="@(_SlimOptionalNames->'$(_SlimPublishDir)%(Identity)')"
+                          Condition="'$(_SlimPublishDir)' != ''" />
+    </ItemGroup>
+    <Delete Files="@(_SlimOptionalFiles)" />
+
+    <!-- ③ 语言目录：只保留 5 个，其余按目录名精确删除。
+           ★ 判定用「形状 + 排除名单」双保险，不靠单一正则：
+             形状：以 2~3 位小写字母开头（ISO 639-1 或 639-3，如 fil-PH / quz-PE），
+                   后面跟 1~2 段 -XX（xx-YY / xx-Script-YY）
+             排除：把项目里所有非语言的、且恰好符合该形状的目录显式列出来。
+             踩过的坑：
+               · 写成 ^[a-zA-Z]{2}(-[a-zA-Z]+)?$ 会漏掉三段式 az-Latn-AZ / sr-Cyrl-RS（11 个）；
+               · 放宽成 ^[a-zA-Z]{2,3}(-[a-zA-Z]+){0,2}$ 会误匹配 vs-plugins、Lib ——
+                 Lib\site-packages 是 VapourSynth 运行时、vs-plugins 是补帧插件，删了功能直接失效。
+           注意：MSBuild 属性函数里不能用 LINQ，改用字符串拼接后 Contains 判断；
+                 项批量转换里不能写 %(_Item.Identity)，直接写 %(Identity)。 -->
+    <PropertyGroup>
+      <_LangDirPattern>^[a-z]{2,3}(-[A-Za-z]{2,8}){1,2}$</_LangDirPattern>
+      <_KeepLangList>;zh-CN;zh-TW;en-us;en-GB;ja-JP;</_KeepLangList>
+      <_NonLangDirList>;Assets;Lib;libmpv;vs-plugins;vs-coreplugins;Microsoft.UI.Xaml;</_NonLangDirList>
+    </PropertyGroup>
+    <ItemGroup>
+      <_AllLangDirs Include="$([System.IO.Directory]::GetDirectories('$(TargetDir)'))"
+                    Condition="Exists('$(TargetDir)')" />
+      <_AllLangDirs Include="$([System.IO.Directory]::GetDirectories('$(_SlimPublishDir)'))"
+                    Condition="'$(_SlimPublishDir)' != '' and Exists('$(_SlimPublishDir)')" />
+    </ItemGroup>
+    <ItemGroup>
+      <_LangDirsToRemove Include="@(_AllLangDirs)"
+                         Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '$(_LangDirPattern)')) and !$(_KeepLangList.Contains(';%(Filename);')) and !$(_NonLangDirList.Contains(';%(Filename);'))" />
+    </ItemGroup>
+    <RemoveDir Directories="@(_LangDirsToRemove)" />
   </Target>
 </Project>

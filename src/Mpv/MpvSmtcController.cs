@@ -21,7 +21,7 @@ namespace SightoHear.Mpv
     /// 使任务栏媒体预览、系统媒体键与外部软件（BetterLyrics 等）可读取播放信息。
     /// 仅应在超分模式（VideoPlayerPage._isMpvMode）下创建，且必须在 UI 线程构造。
     /// </summary>
-    public sealed class MpvSmtcController : IDisposable
+    public sealed partial class MpvSmtcController : IDisposable
     {
         // ISystemMediaTransportControlsInterop（Windows SDK systemmediatransportcontrolsinterop.h）：
         // MIDL_INTERFACE("ddb0472d-c911-4a1f-86d9-dc3d71a95f5a")
@@ -39,14 +39,14 @@ namespace SightoHear.Mpv
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate int GetForWindowDelegate(
-            IntPtr thisPtr, IntPtr appWindow, [In] ref Guid riid, out IntPtr mediaTransportControl);
+            IntPtr thisPtr, IntPtr appWindow, in Guid riid, out IntPtr mediaTransportControl);
 
         // RoGetActivationFactory（combase.dll）：按类名激活 WinRT 类型并返回 IActivationFactory。
         // 注意：activatableClassId 参数是 HSTRING（Windows 运行时字符串），不能用 LPWSTR 替代，
         // 必须通过 WindowsCreateString 创建，否则原生代码按 HSTRING 头解析 LPWSTR 会 AccessViolation。
         [DllImport("combase.dll")]
         private static extern int RoGetActivationFactory(
-            IntPtr activatableClassId, [In] ref Guid iid, out IntPtr factory);
+            IntPtr activatableClassId, in Guid iid, out IntPtr factory);
 
         // WindowsCreateString / WindowsDeleteString（combase.dll）：HSTRING 生命周期管理
         [DllImport("combase.dll")]
@@ -126,20 +126,20 @@ namespace SightoHear.Mpv
                     // 静态只读字段不能直接作为 ref 参数，先复制到局部变量
                     var iidFactory = IActivationFactoryIid;
                     Marshal.ThrowExceptionForHR(
-                        RoGetActivationFactory(classNameHString, ref iidFactory, out IntPtr factoryPtr));
+                        RoGetActivationFactory(classNameHString, in iidFactory, out IntPtr factoryPtr));
                     try
                     {
                         // 手动 QueryInterface：IActivationFactory → ISystemMediaTransportControlsInterop
                         var interopIid = InteropIid;
                         Marshal.ThrowExceptionForHR(
-                            Marshal.QueryInterface(factoryPtr, ref interopIid, out IntPtr interopPtr));
+                            Marshal.QueryInterface(factoryPtr, in interopIid, out IntPtr interopPtr));
                         try
                         {
                             // 手动调用 vtable 槽位 6（IUnknown 0-2 / IInspectable 3-5 / GetForWindow = 6）
                             var getForWindow = GetVtableDelegate<GetForWindowDelegate>(interopPtr, 6);
                             var smtcIid = SystemMediaTransportControlsIid;
                             Marshal.ThrowExceptionForHR(
-                                getForWindow(interopPtr, hwnd, ref smtcIid, out IntPtr smtcPtr));
+                                getForWindow(interopPtr, hwnd, in smtcIid, out IntPtr smtcPtr));
                             try
                             {
                                 return SystemMediaTransportControls.FromAbi(smtcPtr);

@@ -83,7 +83,9 @@ namespace SightoHear.Services.Lyrics
                 var dir = Path.GetDirectoryName(FilePath);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-                string json = JsonSerializer.Serialize(new Dictionary<string, int>(Delays));
+                string json = JsonSerializer.Serialize(
+                    new Dictionary<string, int>(Delays),
+                    AppJsonContext.Default.DictionaryStringInt32);
                 File.WriteAllText(FilePath, json, new UTF8Encoding(false));
                 AppLogger.Debug($"保存歌词延迟记录 {Delays.Count} 条");
             }

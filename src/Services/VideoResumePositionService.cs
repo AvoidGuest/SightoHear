@@ -169,7 +169,9 @@ namespace SightoHear.Services
                 var dir = Path.GetDirectoryName(FilePath);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-                string json = JsonSerializer.Serialize(new Dictionary<string, VideoResumeEntry>(Entries));
+                string json = JsonSerializer.Serialize(
+                    new Dictionary<string, VideoResumeEntry>(Entries),
+                    AppJsonContext.Default.DictionaryStringVideoResumeEntry);
                 File.WriteAllText(FilePath, json, new UTF8Encoding(false));
                 AppLogger.Debug($"保存记忆播放位置记录 {Entries.Count} 条");
             }

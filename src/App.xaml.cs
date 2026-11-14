@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
@@ -331,6 +331,11 @@ namespace SightoHear
             public static string VideoOutputDeviceId { get; set; } = string.Empty;
             public static bool MusicUseNetworkLyricsSource { get; set; }
             public static string MusicLyricsSourcePreference { get; set; } = "Auto";
+            // 音乐播放器 - 高级歌词渲染效果（播放器设置弹窗「启用高级渲染效果」）：
+            // 总开关 + 子功能（逐字浮起 / 交错滚动），彼此独立持久化。
+            public static bool LyricsAdvancedRenderingEnabled { get; set; } = true;
+            public static bool LyricsAdvFloatEnabled { get; set; } = true;
+            public static bool LyricsAdvInterleaveScrollEnabled { get; set; } = true;
             public static int PlaylistDefaultView { get; set; } = 1;
             public static int PlaylistDefaultSort { get; set; } = 1;
             public static bool PlaylistRememberView { get; set; } = true;
@@ -479,6 +484,12 @@ namespace SightoHear
                         MusicUseNetworkLyricsSource = musicUseNetLyrics.GetBoolean();
                     if (root.TryGetProperty("MusicLyricsSourcePreference", out var lyricsSourcePreference))
                         MusicLyricsSourcePreference = lyricsSourcePreference.GetString() ?? "Auto";
+                    if (root.TryGetProperty("LyricsAdvancedRenderingEnabled", out var advRenderingEnabled))
+                        LyricsAdvancedRenderingEnabled = advRenderingEnabled.GetBoolean();
+                    if (root.TryGetProperty("LyricsAdvFloatEnabled", out var advFloatEnabled))
+                        LyricsAdvFloatEnabled = advFloatEnabled.GetBoolean();
+                    if (root.TryGetProperty("LyricsAdvInterleaveScrollEnabled", out var advInterleaveEnabled))
+                        LyricsAdvInterleaveScrollEnabled = advInterleaveEnabled.GetBoolean();
                     if (root.TryGetProperty("PlaylistDefaultView", out var playlistView))
                         PlaylistDefaultView = playlistView.GetInt32();
                     if (root.TryGetProperty("PlaylistDefaultSort", out var playlistSort))
@@ -673,6 +684,9 @@ namespace SightoHear
                     node["VideoOutputDeviceId"] = VideoOutputDeviceId;
                     node["MusicUseNetworkLyricsSource"] = MusicUseNetworkLyricsSource;
                     node["MusicLyricsSourcePreference"] = MusicLyricsSourcePreference;
+                    node["LyricsAdvancedRenderingEnabled"] = LyricsAdvancedRenderingEnabled;
+                    node["LyricsAdvFloatEnabled"] = LyricsAdvFloatEnabled;
+                    node["LyricsAdvInterleaveScrollEnabled"] = LyricsAdvInterleaveScrollEnabled;
                     node["PlaylistDefaultView"] = PlaylistDefaultView;
                     node["PlaylistDefaultSort"] = PlaylistDefaultSort;
                     node["PlaylistRememberView"] = PlaylistRememberView;
@@ -735,12 +749,10 @@ namespace SightoHear
                     node["CustomAccentColorG"] = CustomAccentColor.G;
                     node["CustomAccentColorB"] = CustomAccentColor.B;
 
-                    var options = new JsonSerializerOptions
-                    {
-                        WriteIndented = false,
-                        PropertyNamingPolicy = null
-                    };
-                    File.WriteAllText(FilePath, node.ToJsonString(options));
+                    // ★ Native AOT：JsonNode 序列化必须绑定源生成上下文（见 JsonNodeHelper）
+                    // 裸 new JsonSerializerOptions { } 在 AOT 下会落到 EmptyJsonTypeInfoResolver，
+                    // 抛 NotSupportedException: JsonTypeInfo metadata for type ... was not provided.
+                    File.WriteAllText(FilePath, Services.JsonNodeHelper.ToJson(node));
                 }
                 catch
                 {

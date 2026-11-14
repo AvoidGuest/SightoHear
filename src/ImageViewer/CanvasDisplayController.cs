@@ -33,7 +33,7 @@ namespace SightoHear.ImageViewer
     /// 坐标单位：内部一律使用"像素"（CanvasUnits.Pixels + DPI 换算），
     /// 指针坐标从 UI 线程（DIP）换算到像素后再进入命中测试与平移增量。
     /// </summary>
-    internal sealed class CanvasDisplayController : IDisposable
+    internal sealed partial class CanvasDisplayController : IDisposable
     {
         // --- 事件（已在 UI 线程派发，页面可直接订阅） ---
         /// <summary>缩放百分比变化（已取整）。</summary>

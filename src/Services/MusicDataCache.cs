@@ -168,14 +168,14 @@ namespace SightoHear.Services
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
 
-                var dto = AllPlaylists.Select(p => new PlaylistDto
+                var dto = AllPlaylists.Select(p => new PlaylistCacheDto
                 {
                     Id = p.Id,
                     Name = p.Name,
                     CoverPath = p.CoverPath,
                     Description = p.Description,
                     DateCreated = p.DateCreated,
-                    Items = p.Items.Select(item => new MediaItemDto
+                    Items = p.Items.Select(item => new MediaItemCacheDto
                     {
                         FilePath = item.FilePath,
                         Title = item.Title,
@@ -193,8 +193,10 @@ namespace SightoHear.Services
                     }).ToList()
                 }).ToList();
 
-                var options = new JsonSerializerOptions { WriteIndented = false, PropertyNamingPolicy = null };
-                File.WriteAllText(PlaylistsFilePath, JsonSerializer.Serialize(dto, options));
+                // ★ Native AOT：必须走源生成上下文（反射式重载在 AOT 下直接抛异常）。
+                File.WriteAllText(
+                    PlaylistsFilePath,
+                    JsonSerializer.Serialize(dto, AppJsonContext.Default.ListPlaylistCacheDto));
             }
             catch { }
         }
@@ -210,7 +212,7 @@ namespace SightoHear.Services
             try
             {
                 var json = File.ReadAllText(PlaylistsFilePath);
-                var dto = JsonSerializer.Deserialize<List<PlaylistDto>>(json);
+                var dto = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListPlaylistCacheDto);
                 if (dto == null)
                 {
                     _allPlaylists = new List<Playlist>();
@@ -248,34 +250,8 @@ namespace SightoHear.Services
             }
         }
 
-        // 注意：这些 DTO 类与原有 MusicPage 中的一致
-        // 如果修改了 MusicPage 中的 DTO，这里也需要同步修改
-        private class PlaylistDto
-        {
-            public string Id { get; set; } = string.Empty;
-            public string Name { get; set; } = string.Empty;
-            public string CoverPath { get; set; } = string.Empty;
-            public string Description { get; set; } = string.Empty;
-            public DateTime DateCreated { get; set; }
-            public List<MediaItemDto> Items { get; set; } = new();
-        }
-
-        private class MediaItemDto
-        {
-            public string FilePath { get; set; } = string.Empty;
-            public string Title { get; set; } = string.Empty;
-            public string Artist { get; set; } = string.Empty;
-            public string Album { get; set; } = string.Empty;
-            public long FileSize { get; set; }
-            public TimeSpan? Duration { get; set; }
-            public DateTime DateCreated { get; set; }
-            public DateTime DateModified { get; set; }
-            public string ThumbnailPath { get; set; } = string.Empty;
-            public string MediaType { get; set; } = string.Empty;
-            public uint TrackNumber { get; set; }
-            public int PixelWidth { get; set; }
-            public int PixelHeight { get; set; }
-        }
+        // 歌单缓存 DTO 已移至 Services/PlaylistCacheDto.cs（顶层 internal 类型）——
+        // 源生成器无法处理私有嵌套类的 AOT 读写器，故必须外置。
         #endregion
     }
 }

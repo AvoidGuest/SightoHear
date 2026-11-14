@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 
 namespace SightoHear.Mpv.Common;
 
-public abstract class FrameBufferBase : IDisposable
+public abstract partial class FrameBufferBase : IDisposable
 {
     public abstract int BufferWidth { get; protected set; }
 

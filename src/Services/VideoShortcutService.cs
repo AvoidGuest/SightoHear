@@ -164,7 +164,7 @@ namespace SightoHear.Services
                 var dir = Path.GetDirectoryName(FilePath);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-                string json = JsonSerializer.Serialize(Bindings);
+                string json = JsonSerializer.Serialize(Bindings, AppJsonContext.Default.ListVideoShortcutItem);
                 File.WriteAllText(FilePath, json, new UTF8Encoding(false));
                 AppLogger.Debug($"保存视频快捷键绑定 {Bindings.Count} 条");
             }
@@ -199,11 +199,11 @@ namespace SightoHear.Services
                 if (!File.Exists(FilePath))
                     return;
                 var json = File.ReadAllText(FilePath);
-                var loaded = JsonSerializer.Deserialize<List<VideoShortcutItem>>(json);
+                var loaded = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListVideoShortcutItem);
                 if (loaded == null || loaded.Count == 0)
                 {
                     // 兼容旧版字典格式：{"ActionId": {...}}，键即行为 ID
-                    var legacy = JsonSerializer.Deserialize<Dictionary<string, VideoShortcutItem>>(json);
+                    var legacy = JsonSerializer.Deserialize(json, AppJsonContext.Default.DictionaryStringVideoShortcutItem);
                     if (legacy != null && legacy.Count > 0)
                     {
                         Bindings.Clear();

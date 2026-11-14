@@ -18,7 +18,7 @@ namespace SightoHear.Helpers
     /// 内部使用 Task.Delay 循环（而非 DispatcherQueueTimer），
     /// 避免 async void 导致的时序不可预测和"停滞"假象。
     /// </summary>
-    public sealed class ThumbnailLoadQueue : IDisposable
+    public sealed partial class ThumbnailLoadQueue : IDisposable
     {
         private readonly DispatcherQueue _dispatcher;
         private readonly int _intervalMs;

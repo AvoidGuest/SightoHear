@@ -11,7 +11,7 @@
 <div>
   <img src="https://img.shields.io/badge/Language-C%23-purple" alt="C#">
   <img src="https://img.shields.io/badge/Framework-WinUI%203-blue" alt="WinUI 3">
-  <img src="https://img.shields.io/badge/.NET-8.0-512BD4" alt=".NET 8">
+  <img src="https://img.shields.io/badge/.NET-10.0-512BD4" alt=".NET 10">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows" alt="Windows">
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue" alt="License">
 </div>

@@ -5,7 +5,18 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace SightoHear.Models
 {
-    public class MediaItem
+    /// <summary>
+    /// 媒体项统一模型（视频/音乐/图片）。
+    ///
+    /// ★ Native AOT 必需：播放队列模板（MainWindow / MusicPlayerPage / VideoPlayerPage 的
+    /// QueueItemDefaultTemplate、QueueItemNowPlayingTemplate）用的是经典 {Binding}，
+    /// 会以反射方式读取 Title / ArtistDisplay / CoverDisplayPath 等属性。
+    /// AOT 下无运行时反射来合成 ICustomProperty，必须由 CsWinRT 源生成器编译期生成访问器，
+    /// 否则打开播放队列即 0xC000027B 闪退（与 VideoGroup 同一根因，详见 VideoGroup.cs 注释）。
+    /// ★ 必须 partial，否则源生成器不产出代码（诊断 CS8089）。
+    /// </summary>
+    [WinRT.GeneratedBindableCustomProperty]
+    public partial class MediaItem
     {
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public string FilePath { get; set; } = string.Empty;

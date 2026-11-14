@@ -153,6 +153,9 @@ namespace SightoHear
             // ★ 修复：改用具名方法订阅，便于 Unloaded 时退订（匿名 lambda 无法退订，
             //   且运行中的 Timer 会持续持有页面实例）
             _controlsHideTimer.Tick += ControlsHideTimer_Tick;
+
+            // 应用高级歌词渲染效果设置（逐字浮起 / 交错滚动）
+            ApplyAdvancedRenderingSettings();
         }
 
         private void ControlsHideTimer_Tick(object? sender, object e)
@@ -379,6 +382,19 @@ namespace SightoHear
             int delay = LyricsDelayStore.GetDelay(item?.FilePath);
             _lyricsRenderer.UserDelayMs = delay;
             AppLogger.Info($"切换歌曲歌词延迟应用: {delay} ms");
+        }
+
+        /// <summary>
+        /// 应用"高级渲染效果"设置到歌词渲染器（总开关 + 逐字浮起 / 交错滚动）。
+        /// 开关属性为 volatile，UI 线程写入后渲染线程下一帧即生效，无需重启或重载歌词。
+        /// </summary>
+        private void ApplyAdvancedRenderingSettings()
+        {
+            if (_lyricsRenderer == null)
+                return;
+            _lyricsRenderer.EnableAdvancedRendering = App.SettingsHelper.LyricsAdvancedRenderingEnabled;
+            _lyricsRenderer.EnableAdvFloat = App.SettingsHelper.LyricsAdvFloatEnabled;
+            _lyricsRenderer.EnableAdvInterleaveScroll = App.SettingsHelper.LyricsAdvInterleaveScrollEnabled;
         }
 
         private void UpdateSongInfo(MediaItem item)
@@ -1403,6 +1419,8 @@ namespace SightoHear
             };
 
             panel.Children.Add(BuildNetworkLyricsExpander());
+            // 高级渲染效果设置（总开关 + 逐字浮起 / 交错滚动子项）
+            panel.Children.Add(BuildAdvancedRenderingExpander());
             // 音频输出设备卡片由 PlayerSettingsDialogHelper 统一构建（与视频播放器共用），
             // 此处注入音乐播放器的设备保存与应用逻辑。
             panel.Children.Add(PlayerSettingsDialogHelper.BuildAudioOutputExpander(
@@ -1695,6 +1713,114 @@ namespace SightoHear
             {
                 if (!toggle.IsOn)
                     toggle.IsOn = true; // 触发 Toggled 联动保存
+            };
+
+            return expander;
+        }
+
+        /// <summary>
+        /// 可展开的"启用高级渲染效果"设置卡片：
+        /// 主开关位于头部右侧（Content 位），负责整体开关；展开后为两个子功能开关——
+        /// 「逐字浮起」（逐字按音节依次浮起）、「交错滚动」（换行逐行接力滚动）。
+        /// 设置即时应用到歌词渲染器（volatile 属性，渲染线程下一帧生效）。
+        /// </summary>
+        private SettingsExpander BuildAdvancedRenderingExpander()
+        {
+            // 主开关：位于 SettingsExpander 的 Content 位，即头部右侧
+            var toggle = new ToggleSwitch
+            {
+                IsOn = App.SettingsHelper.LyricsAdvancedRenderingEnabled,
+                MinWidth = 0,
+                OnContent = string.Empty,
+                OffContent = string.Empty,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // 两个子功能开关（主开关关闭时禁用）
+            ToggleSwitch BuildSubToggle(bool initial) => new()
+            {
+                IsOn = initial,
+                IsEnabled = App.SettingsHelper.LyricsAdvancedRenderingEnabled,
+                MinWidth = 0,
+                OnContent = string.Empty,
+                OffContent = string.Empty,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var floatToggle = BuildSubToggle(App.SettingsHelper.LyricsAdvFloatEnabled);
+            var interleaveToggle = BuildSubToggle(App.SettingsHelper.LyricsAdvInterleaveScrollEnabled);
+
+            // 子开关变更：保存 + 应用到渲染器
+            floatToggle.Toggled += (_, _) =>
+            {
+                App.SettingsHelper.LyricsAdvFloatEnabled = floatToggle.IsOn;
+                App.SettingsHelper.Save();
+                ApplyAdvancedRenderingSettings();
+                AppLogger.Info($"高级渲染-逐字浮起调整为 {(floatToggle.IsOn ? "开启" : "关闭")}");
+            };
+            interleaveToggle.Toggled += (_, _) =>
+            {
+                App.SettingsHelper.LyricsAdvInterleaveScrollEnabled = interleaveToggle.IsOn;
+                App.SettingsHelper.Save();
+                ApplyAdvancedRenderingSettings();
+                AppLogger.Info($"高级渲染-交错滚动调整为 {(interleaveToggle.IsOn ? "开启" : "关闭")}");
+            };
+
+            // 子设置卡片（窄弹窗下保持开关在右侧不换行）
+            var floatCard = new SettingsCard
+            {
+                Header = "逐字浮起",
+                Description = "逐字按音节依次向上浮起",
+                Content = floatToggle,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
+            };
+            floatCard.Resources["SettingsCardWrapThreshold"] = 200.0;
+            floatCard.Resources["SettingsCardWrapNoIconThreshold"] = 160.0;
+
+            var interleaveCard = new SettingsCard
+            {
+                Header = "交错滚动",
+                Description = "换行时各行逐行接力滚动（每行独立曲线）",
+                Content = interleaveToggle,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
+            };
+            interleaveCard.Resources["SettingsCardWrapThreshold"] = 200.0;
+            interleaveCard.Resources["SettingsCardWrapNoIconThreshold"] = 160.0;
+
+            // 可展开设置卡片主体（与"使用网络歌词源"卡片同构）
+            var expander = new SettingsExpander
+            {
+                Header = "启用高级渲染效果",
+                Description = "逐字浮起 / 交错滚动",
+                HeaderIcon = new FontIcon
+                {
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("ms-appx:///Assets/Fonts/Segoe Fluent Icons.ttf#Segoe Fluent Icons"),
+                    FontSize = 16,
+                    Glyph = "\uE945" // 闪电（效果增强）
+                },
+                Content = toggle, // 主开关显示在头部右侧
+                IsExpanded = false,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
+            };
+            expander.Resources["SettingsCardWrapThreshold"] = 200.0;
+            expander.Resources["SettingsCardWrapNoIconThreshold"] = 160.0;
+            expander.Resources["SettingsExpanderWrapThreshold"] = 200.0;
+            expander.Resources["SettingsExpanderWrapNoIconThreshold"] = 160.0;
+
+            expander.Items.Add(floatCard);
+            expander.Items.Add(interleaveCard);
+
+            // 主开关联动：关闭 → 子开关禁用（灰显）；开启 → 恢复可用
+            toggle.Toggled += (_, _) =>
+            {
+                App.SettingsHelper.LyricsAdvancedRenderingEnabled = toggle.IsOn;
+                App.SettingsHelper.Save();
+                ApplyAdvancedRenderingSettings();
+                AppLogger.Info($"高级渲染效果调整为 {(toggle.IsOn ? "开启" : "关闭")}");
+                floatToggle.IsEnabled = toggle.IsOn;
+                interleaveToggle.IsEnabled = toggle.IsOn;
             };
 
             return expander;

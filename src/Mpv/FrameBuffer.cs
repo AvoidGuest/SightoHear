@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media;
 using Silk.NET.DXGI;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Graphics.Wgl;
@@ -14,7 +14,7 @@ namespace SightoHear.Mpv.Common;
 /// GL 帧缓冲封装：创建 D3D11 交换链 + GL 帧缓冲 + WGL_NV_DX_interop 桥接。
 /// 尺寸固定，不支持动态 resize。尺寸变化时由 RenderControl 整体销毁重建。
 /// </summary>
-public unsafe class FrameBuffer : FrameBufferBase
+public unsafe partial class FrameBuffer : FrameBufferBase
 {
     public RenderContext Context { get; }
 

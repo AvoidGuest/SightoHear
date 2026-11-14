@@ -68,6 +68,16 @@ namespace SightoHear.Services.Lyrics
             return state.CurrentOffset;
         }
 
+        /// <summary>
+        /// 清零所有字符的当前浮起偏移（保留配置），用于"逐字浮起"开关关闭时
+        /// 立即撤下已浮起的文字而不破坏已构建的时序配置。
+        /// </summary>
+        public void ClearOffsets()
+        {
+            foreach (var state in _states.Values)
+                state.CurrentOffset = 0;
+        }
+
         public void Reset()
         {
             foreach (var state in _states.Values)

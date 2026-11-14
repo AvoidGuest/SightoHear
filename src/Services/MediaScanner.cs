@@ -113,13 +113,8 @@ namespace SightoHear.Services
                     ["ImageRecursiveScan"] = true
                 };
 
-                File.WriteAllText(
-                    SettingsPath,
-                    settings.ToJsonString(new JsonSerializerOptions
-                    {
-                        WriteIndented = true,
-                        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-                    }));
+                // ★ Native AOT：JsonNode 序列化必须绑定源生成上下文
+                File.WriteAllText(SettingsPath, JsonNodeHelper.ToJson(settings));
 
                 AppLogger.Info("首次运行: 已初始化视频、音乐和图库默认路径");
             }
@@ -133,7 +128,8 @@ namespace SightoHear.Services
         {
             var paths = new JsonArray();
             if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
-                paths.Add(path);
+                // ★ 不能用 paths.Add(path)：AOT 下泛型重载会走 ConvertFromValue 并失败
+                JsonNodeHelper.AddString(paths, path);
             return paths;
         }
 
@@ -852,11 +848,8 @@ namespace SightoHear.Services
             {
                 Directory.CreateDirectory(CacheDir);
                 var cacheFile = GetCacheFilePath(mediaType);
-                var json = JsonSerializer.Serialize(items, new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-                });
+                // ★ Native AOT：走源生成上下文（反射式重载在 AOT 下不可用）
+                var json = JsonSerializer.Serialize(items, AppJsonContext.Default.ListMediaItem);
                 File.WriteAllText(cacheFile, json);
 
                 lock (CacheMemoryLock)
@@ -888,10 +881,8 @@ namespace SightoHear.Services
                 if (File.Exists(cacheFile))
                 {
                     var json = File.ReadAllText(cacheFile);
-                    var items = JsonSerializer.Deserialize<List<MediaItem>>(json, new JsonSerializerOptions
-                    {
-                        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-                    }) ?? new List<MediaItem>();
+                    var items = JsonSerializer.Deserialize(
+                        json, AppJsonContext.Default.ListMediaItem) ?? new List<MediaItem>();
 
                     lock (CacheMemoryLock)
                     {

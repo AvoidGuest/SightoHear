@@ -9,7 +9,7 @@ using Windows.UI;
 
 namespace SightoHear.Services
 {
-    public sealed class CoverBackgroundRenderer : IDisposable
+    public sealed partial class CoverBackgroundRenderer : IDisposable
     {
         private const float BaseRotationSpeed = 0.6f;
         private const double CrossfadeSeconds = 0.7;

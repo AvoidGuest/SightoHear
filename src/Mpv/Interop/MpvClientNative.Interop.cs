@@ -1,4 +1,4 @@
-﻿// Copyright (c) Bili Copilot. All rights reserved.
+// Copyright (c) Bili Copilot. All rights reserved.
 
 using SightoHear.Mpv.Enums.Client;
 using SightoHear.Mpv.Structs.Client;
@@ -116,7 +116,7 @@ public partial class MpvClientNative
     private static partial void mpv_wakeup(MpvHandle handle);
 
     [LibraryImport(MpvIdentifier)]
-    private static partial void mpv_set_wakeup_callback(MpvHandle handle, MpvWakeupCallback<IntPtr> callback, IntPtr data);
+    private static partial void mpv_set_wakeup_callback(MpvHandle handle, MpvWakeupCallback callback, IntPtr data);
 
     [LibraryImport(MpvIdentifier)]
     private static partial void mpv_wait_async_requests(MpvHandle handle);
@@ -136,6 +136,9 @@ public partial class MpvClientNative
     #endregion
 
     #region Delegate
-    public delegate void MpvWakeupCallback<in T>(T data);
+    // 非泛型委托：.NET 9+ 的源生成封送器（SYSLIB1051）不支持泛型委托作为 LibraryImport 参数，
+    // 且 Native AOT 下也无运行时封送兜底，故改为固定 IntPtr 签名（调用方始终传 IntPtr）。
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void MpvWakeupCallback(IntPtr data);
     #endregion
 }

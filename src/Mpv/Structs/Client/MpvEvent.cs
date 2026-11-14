@@ -1,4 +1,4 @@
-﻿// Copyright (c) Bili Copilot. All rights reserved.
+// Copyright (c) Bili Copilot. All rights reserved.
 
 using SightoHear.Mpv.Enums.Client;
 using System.Runtime.InteropServices;
@@ -73,5 +73,8 @@ public partial struct MpvEvent
     /// <para>Note: future enhancements might add new event structs for existing or new</para>
     /// <para>event types.</para>
     /// </remarks>
-    public T GetData<T>() where T : struct => Marshal.PtrToStructure<T>(DataPtr);
+    public T GetData<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
+        System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors |
+        System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.NonPublicConstructors)] T>()
+        where T : struct => Marshal.PtrToStructure<T>(DataPtr);
 }

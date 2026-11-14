@@ -1942,7 +1942,8 @@ namespace SightoHear
                 if (File.Exists(_favoritesFilePath))
                 {
                     var json = File.ReadAllText(_favoritesFilePath);
-                    _allFavorites = System.Text.Json.JsonSerializer.Deserialize<List<Playlist>>(json) ?? new();
+                    _allFavorites = System.Text.Json.JsonSerializer.Deserialize(
+                        json, Services.AppJsonContext.Default.ListPlaylist) ?? new();
                 }
                 else
                 {
@@ -1970,7 +1971,8 @@ namespace SightoHear
                 var dir = Path.GetDirectoryName(_favoritesFilePath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                var json = System.Text.Json.JsonSerializer.Serialize(_allFavorites);
+                var json = System.Text.Json.JsonSerializer.Serialize(
+                    _allFavorites, Services.AppJsonContext.Default.ListPlaylist);
                 File.WriteAllText(_favoritesFilePath, json);
             }
             catch { }

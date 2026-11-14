@@ -10,7 +10,7 @@ using Windows.UI;
 
 namespace SightoHear.Services
 {
-    public sealed class FluidBackgroundRenderer : IDisposable
+    public sealed partial class FluidBackgroundRenderer : IDisposable
     {
         private PixelShaderEffect<FluidBackgroundEffect>? _fluidEffect;
         private readonly object _lock = new();

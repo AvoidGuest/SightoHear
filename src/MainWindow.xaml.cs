@@ -82,6 +82,11 @@ namespace SightoHear
 
         // 侧边栏自适应阈值：窗口宽度低于此值时自动收起侧边栏并切换为悬浮样式
         private const double SidebarCollapseThreshold = 800.0;
+
+        // 侧边栏布局是否已过首次布局阶段（见 UpdateSidebarLayout 的说明）
+        private bool _sidebarLayoutReady;
+        // 首次布局期间记录的目标紧凑状态，Loaded 后统一套用
+        private bool _pendingCompactMode;
         // 侧边栏宽度（展开时）
         private const double SidebarExpandedWidth = 320.0;
         // 侧边栏宽度（紧凑模式，仅图标）
@@ -958,6 +963,16 @@ namespace SightoHear
         /// 根据窗口宽度更新侧边栏布局：
         /// - 窗口宽度 >= 阈值：展开模式（Left），侧边栏正常显示
         /// - 窗口宽度 < 阈值：紧凑模式（LeftCompact），侧边栏仅显示图标，悬浮在内容上方
+        ///
+        /// ★ 关键：不能在「首次布局过程中」切换 PaneDisplayMode。
+        /// RootGrid.SizeChanged 第一次触发时宽度刚从 0 变成实际值，此时 NavigationView
+        /// 内部的 SplitView 还没完成第一轮测量；在这个时机把 Left 改成 LeftCompact，
+        /// SplitView 会沿用展开态的 OpenPaneLength 计算过程，导致紧凑面板的宽度停在 0，
+        /// 表现为「左侧图标被压扁、只剩一条窄边、部分图标跑到窗口外」。
+        /// 此时点一下汉堡按钮（触发一次 IsPaneOpen 开→关）才会重新套用紧凑模板，症状消失。
+        /// 因此这里分两步：
+        ///   1) 首次布局阶段只记录待定的目标模式，不立即改；
+        ///   2) 等 NavigationView 真正 Loaded 且完成一轮布局后，再套用。
         /// </summary>
         private void UpdateSidebarLayout()
         {
@@ -966,24 +981,39 @@ namespace SightoHear
             double windowWidth = RootGrid.ActualWidth;
             if (windowWidth <= 0) return;
 
-            bool shouldCollapse = windowWidth < SidebarCollapseThreshold;
+            // 首次布局尚未结束：先记下来，等 Loaded 后的调度回调再应用
+            if (!_sidebarLayoutReady)
+            {
+                _pendingCompactMode = windowWidth < SidebarCollapseThreshold;
+                return;
+            }
+
+            ApplySidebarDisplayMode(windowWidth < SidebarCollapseThreshold);
+        }
+
+        /// <summary>把侧边栏切换到指定显示模式（幂等，状态一致时直接返回）。</summary>
+        private void ApplySidebarDisplayMode(bool compact)
+        {
+            if (_isClosed || MainNavigationView == null) return;
+
             bool isCurrentlyCompact = MainNavigationView.PaneDisplayMode == NavigationViewPaneDisplayMode.LeftCompact;
+            if (compact == isCurrentlyCompact) return;
 
-            // 无需切换
-            if (shouldCollapse == isCurrentlyCompact) return;
-
-            if (shouldCollapse)
+            if (compact)
             {
                 MainNavigationView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftCompact;
                 MainNavigationView.IsPaneOpen = false;
-                UpdateSidebarPaneBackground();
             }
             else
             {
                 MainNavigationView.PaneDisplayMode = NavigationViewPaneDisplayMode.Left;
                 MainNavigationView.IsPaneOpen = true;
-                UpdateSidebarPaneBackground();
             }
+            UpdateSidebarPaneBackground();
+
+            // 切换后强制同步一次布局，让 SplitView 立刻按新的 CompactPaneLength/OpenPaneLength
+            // 重新测量，而不是等下一帧。否则在某些机器上首个渲染帧会用到旧的 Pane 宽度。
+            try { MainNavigationView.UpdateLayout(); } catch { }
         }
 
         // ===================================================================================
@@ -1071,6 +1101,28 @@ namespace SightoHear
                 FindNamedElement(MainNavigationView, "PaneContentGrid") ??
                 FindNamedElement(MainNavigationView, "PaneRoot");
             ApplyBackdrop(App.SettingsHelper.BackdropType);
+
+            // ★ 侧边栏模式切换必须等 NavigationView 完成首轮布局。
+            // 直接在此处切换仍可能早于 SplitView 的测量/排列，
+            // 因此排到 LayoutUpdated 之后再切（且只切一次）。
+            // 见 UpdateSidebarLayout 顶部关于「图标被压扁」的详细说明。
+            void ApplyOnce()
+            {
+                MainNavigationView.LayoutUpdated -= OnFirstLayoutUpdated;
+                _sidebarLayoutReady = true;
+
+                double width = RootGrid.ActualWidth;
+                bool compact = width > 0
+                    ? width < SidebarCollapseThreshold
+                    : _pendingCompactMode;
+
+                // 先回到一个确定状态再切，避免继承首次布局残留的 Pane 宽度
+                ApplySidebarDisplayMode(compact);
+            }
+
+            MainNavigationView.LayoutUpdated += OnFirstLayoutUpdated;
+
+            void OnFirstLayoutUpdated(object? s, object args) => ApplyOnce();
         }
 
         private void MainNavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -1288,7 +1340,9 @@ namespace SightoHear
             try
             {
                 if (File.Exists(path))
-                    return JsonSerializer.Deserialize<List<Playlist>>(File.ReadAllText(path))
+                    // ★ Native AOT：走源生成上下文（反射式重载在 AOT 下不可用）
+                    return JsonSerializer.Deserialize(
+                               File.ReadAllText(path), Services.AppJsonContext.Default.ListPlaylist)
                            ?? new List<Playlist>();
             }
             catch { }
@@ -1306,7 +1360,8 @@ namespace SightoHear
                 var dir = IO.Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-                File.WriteAllText(path, JsonSerializer.Serialize(favorites));
+                File.WriteAllText(path,
+                    JsonSerializer.Serialize(favorites, Services.AppJsonContext.Default.ListPlaylist));
             }
             catch { }
         }
