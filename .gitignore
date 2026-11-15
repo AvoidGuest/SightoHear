@@ -64,3 +64,9 @@ Crashes/
 *.bak
 Thumbs.db
 .DS_Store
+
+# 本地临时测试构建脚本（仅开发用，不随源码分发）
+src/build-temp.ps1
+
+# 本地临时工作目录（发布说明草稿等）
+.tempbuild/
