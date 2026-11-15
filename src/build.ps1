@@ -12,7 +12,7 @@
     │          │ 复用上一次生成的 *.g.cs，只重编 C#（实测约 7 秒）。     │
     │          │ 前提：上一次完整构建成功，且没有改动 .xaml。            │
     │          │ 不满足时会自动回退成完整构建，不会给出错误产物。        │
-    │ Portable │ 便携版免安装产物（WindowsPackageType=None）→ dist\…\    │
+    │ Portable │ 便携版免安装产物（WindowsPackageType=None）→ …\Portable\ │
     │ Msix     │ MSIX 安装包 → bin\<配置>\<平台>\SightoHear_x.y.z_*.msix │
     │ All      │ 先 Portable 再 Msix，一次拿到两种产物。                │
     └──────────┴────────────────────────────────────────────────────────┘
@@ -23,8 +23,8 @@
     因此修一处代码两边同时生效，不存在「只修了便携版 / 只修了打包版」的问题。
 
     输出目录：
-      Portable → src\dist\<配置>\<平台>\        （整个文件夹可拷走）
-      Fast     → src\dist\Debug\<平台>\         （托管，仅供本机调试）
+      Portable → src\bin\<配置>\<平台>\Portable\  （整个文件夹可拷走）
+      Fast     → src\bin\Debug\<平台>\Portable\   （托管，仅供本机调试）
       Msix     → src\bin\<配置>\<平台>\*.msix
 
     便携版分发形态（重要）：
@@ -107,7 +107,8 @@ if ($UseAot -and -not $AotSupported) {
     Write-Warning ('平台 ' + $Platform + ' 不支持 Native AOT（.NET 无 ILCompiler x86 运行时包），已回退为托管构建。')
 }
 
-$BinDir = Join-Path $ProjectRoot ('dist\' + $Configuration + '\' + $PlatformFolder)
+# 便携版可运行产物落 bin\<配置>\<平台>\Portable\，与同目录下的 .msix 安装包分层共存
+$BinDir = Join-Path $ProjectRoot ('bin\' + $Configuration + '\' + $PlatformFolder + '\Portable')
 $ObjDir = Join-Path $ProjectRoot ('obj\' + $Configuration + '\' + $PlatformFolder)
 
 function Write-Banner([string]$Mode, [string]$Note) {

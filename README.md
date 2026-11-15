@@ -119,8 +119,8 @@ SightoHear 由以下开源框架与库驱动：
 
    | 目标 | 命令 | 产物 | 耗时 |
    |------|------|------|------|
-   | 快速迭代 | `.\build.ps1 -Target Fast` | `dist\Debug\x64\`（托管） | 约 8 秒 |
-   | 便携版 | `.\build.ps1 -Target Portable` | `dist\Release\x64\`（Native AOT） | 约 2 分钟 |
+   | 快速迭代 | `.\build.ps1 -Target Fast` | `bin\Debug\x64\Portable\`（托管） | 约 8 秒 |
+   | 便携版 | `.\build.ps1 -Target Portable` | `bin\Release\x64\Portable\`（Native AOT） | 约 2 分钟 |
    | MSIX 安装包 | `.\build.ps1 -Target Msix` | `bin\Release\x64\*.msix` | 约 5 分钟 |
    | 两种都要 | `.\build.ps1 -Target All` | 以上两者 | 约 4.5 分钟 |
 

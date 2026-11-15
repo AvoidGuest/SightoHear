@@ -399,6 +399,65 @@ if (-not $SkipPayloadSlim) {
     }
 }
 
+# ==================== 打包前硬校验：这个包能不能启动 ====================
+# ★ 2026-11-15 事故：MSIX 包安装后双击无反应。
+#   原因：csproj 里 WindowsAppSdkBootstrapInitialize 的条件只判断了 WindowsAppSDKSelfContained，
+#   而该项目在 MSIX 模式下也是 false → Bootstrap auto-initializer 被误开启。
+#   打包应用由 AppxManifest 的 PackageDependency 拿到运行时，进程本身已有程序标识符，
+#   再调 MddBootstrapInitialize 会在 Main 之前失败。
+#
+# ★ 注意校验对象：不能以「载荷里有没有 Microsoft.WindowsAppRuntime.Bootstrap.dll」判断。
+#   实测已发布的正常包同样带着这个 DLL（SDK 会无条件复制它是内容项），
+#   带它无害；真正决定行为的是 WindowsAppSdkBootstrapInitialize 生成的模块初始化器代码。
+#   所以这里读 MSBuild 求值后的属性，那才是编译时的真实输入。
+Write-Host "`n---------- 启动前置校验 ----------" -ForegroundColor Cyan
+
+$aotFlag = if ([bool]$Aot) { 'true' } else { 'false' }
+$evalJson = & dotnet msbuild $ProjectFile -p:Platform=$Platform -p:Configuration=$Configuration `
+    -p:SightoHearMsix=true -p:PublishAot=$aotFlag `
+    -getProperty:WindowsPackageType,WindowsAppSdkBootstrapInitialize,WindowsAppSdkDeploymentManagerInitialize 2>&1
+if ($LASTEXITCODE -ne 0) {
+    throw "读取 MSBuild 属性失败（退出码 $LASTEXITCODE），无法校验打包配置：`n$evalJson"
+}
+$eval = $evalJson | Out-String | ConvertFrom-Json
+
+if ($eval.Properties.WindowsPackageType -ne 'MSIX') {
+    throw "打包模式期望 WindowsPackageType=MSIX，实际为 '$($eval.Properties.WindowsPackageType)'。"
+}
+if ($eval.Properties.WindowsAppSdkBootstrapInitialize -ne 'false') {
+    throw @"
+打包模式下 WindowsAppSdkBootstrapInitialize 必须为 false，实际为 '$($eval.Properties.WindowsAppSdkBootstrapInitialize)'。
+这个包安装后会无法启动（双击无反应，进程在 Main 之前失败）。
+
+原因：打包应用的运行时由 AppxManifest 的 PackageDependency 提供，进程已有程序标识符；
+      再开启 Bootstrap auto-initializer 会调 MddBootstrapInitialize 并失败。
+
+修复：检查 SightoHear.csproj 中该属性的条件，必须同时判断 WindowsPackageType：
+  <WindowsAppSdkBootstrapInitialize Condition="'`$(WindowsPackageType)' == 'None' and '`$(WindowsAppSDKSelfContained)' != 'true'">true</WindowsAppSdkBootstrapInitialize>
+  <WindowsAppSdkBootstrapInitialize Condition="'`$(WindowsPackageType)' != 'None' or '`$(WindowsAppSDKSelfContained)' == 'true'">false</WindowsAppSdkBootstrapInitialize>
+"@
+}
+Write-Host '  ✓ WindowsAppSdkBootstrapInitialize = false（打包模式正确）' -ForegroundColor Green
+
+if ($eval.Properties.WindowsAppSdkDeploymentManagerInitialize -ne 'false') {
+    throw "打包模式下 WindowsAppSdkDeploymentManagerInitialize 必须为 false，实际为 '$($eval.Properties.WindowsAppSdkDeploymentManagerInitialize)'（Windows 10 上会 REGDB_E_CLASSNOTREG）。"
+}
+Write-Host '  ✓ WindowsAppSdkDeploymentManagerInitialize = false' -ForegroundColor Green
+
+# PackageDependency 决定运行时能否被找到
+$manifestCheck = Join-Path $PayloadDir 'AppxManifest.xml'
+$manifestText  = Get-Content $manifestCheck -Raw -Encoding UTF8
+if ($manifestText -notmatch 'Microsoft\.WindowsAppRuntime\.2') {
+    throw "AppxManifest.xml 缺少 Microsoft.WindowsAppRuntime.2 的 PackageDependency，安装后无法加载运行时。"
+}
+Write-Host '  ✓ PackageDependency 已注入' -ForegroundColor Green
+
+# 载荷里必须有入口 exe
+if (-not (Test-Path (Join-Path $PayloadDir "$ExeName.exe"))) {
+    throw "载荷中缺少入口可执行文件 $ExeName.exe"
+}
+Write-Host ("  ✓ 入口 exe 存在（{0:N1} MB）" -f ((Get-Item (Join-Path $PayloadDir "$ExeName.exe")).Length/1MB)) -ForegroundColor Green
+
 # ==================== 生成 / 复用签名证书 ====================
 Write-Host "`n========== 3/6 证书（$Publisher） ==========" -ForegroundColor Cyan
 $cert = Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |

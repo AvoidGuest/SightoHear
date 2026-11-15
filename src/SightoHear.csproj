@@ -58,15 +58,28 @@
          详见 microsoft/WindowsAppSDK#3137、#6117。禁用后由 Framework 包的 PackageDependency
          声明正常加载运行时，不影响 WinUI 3 / AppLifecycle / MRT Core 等核心功能。 -->
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
-    <!-- ★ Bootstrap 必须跟随 WindowsAppSDKSelfContained 反转（两次崩溃换来的结论）：
-         · SelfContained=true  → 运行时 DLL 就在输出目录，Bootstrap 会去抢注「已安装的」运行时，
-                                 版本不匹配时直接 0xC0000409。
-         · SelfContained=false → 必须打开 Bootstrap，由它查找机器上已安装的 Windows App Runtime；
-                                 关掉会导致 Main 之前 COMException(E_NOINTERFACE) 崩溃。
-         两种发布模式（MSIX / Portable）都走 WindowsAppSDKSelfContained=false，故结果都是 true；
-         写成条件是为了将来切回自包含时不会踩坑。 -->
-    <WindowsAppSdkBootstrapInitialize Condition="'$(WindowsAppSDKSelfContained)' != 'true'">true</WindowsAppSdkBootstrapInitialize>
-    <WindowsAppSdkBootstrapInitialize Condition="'$(WindowsAppSDKSelfContained)' == 'true'">false</WindowsAppSdkBootstrapInitialize>
+    <!-- ★★ Bootstrap 的开关条件有三个，缺一不可（这条是踩崩过的，改动前务必读完）：
+         1) 必须区分 WindowsPackageType：
+              · MSIX（打包）      → Bootstrap 必须【关闭】。打包应用由 AppxManifest 的
+                                    PackageDependency 获得 Windows App Runtime，进程本身已有包标识；
+                                    再调 MddBootstrapInitialize 会在 Main 之前失败，表现为
+                                    「安装成功、双击无反应、进程瞬间消失」。
+              · Portable（非打包）→ Bootstrap 必须【开启】，由它去找机器上已安装的运行时；
+                                    关掉会在 Main 之前 COMException(E_NOINTERFACE) 崩溃。
+         2) 必须跟随 WindowsAppSDKSelfContained 反转：
+              · SelfContained=true  → 运行时 DLL 就在输出目录，Bootstrap 会去抢注「已安装的」运行时，
+                                      版本不匹配时直接 0xC0000409，必须关闭。
+              · SelfContained=false → 保留上面 1) 的结论。
+         3) 不写时 SDK 的默认值是「仅 WindowsPackageType==None 才自动开启」
+            （见 Microsoft.WindowsAppSDK.BootstrapCommon.targets），
+            本意与 1) 一致，但一旦显式赋值就会覆盖该默认行为，所以这里必须把
+            WindowsPackageType 写进条件，不能只判断 SelfContained。
+
+         ★ 2026-11-15 回归事故：曾只按 SelfContained 判断（两种模式都是 false →
+           统一置 true），导致 MSIX 包带上 Bootstrap，安装后无法启动。
+           修复即下面这两行 —— 加回 WindowsPackageType 条件。 -->
+    <WindowsAppSdkBootstrapInitialize Condition="'$(WindowsPackageType)' == 'None' and '$(WindowsAppSDKSelfContained)' != 'true'">true</WindowsAppSdkBootstrapInitialize>
+    <WindowsAppSdkBootstrapInitialize Condition="'$(WindowsPackageType)' != 'None' or '$(WindowsAppSDKSelfContained)' == 'true'">false</WindowsAppSdkBootstrapInitialize>
     <!-- 使用自定义 Program.Main（App.xaml.cs 中定义）替代 XAML 生成的 Main，
          便于打包启动诊断与异常捕获（配合 DISABLE_XAML_GENERATED_MAIN）。
          注意：框架依赖模式依赖 Bootstrap auto-initializer，因此【不能】再设

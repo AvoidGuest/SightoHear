@@ -22,12 +22,15 @@
 
     <!-- ==================== 输出目录（按构建模式分流） ====================
          MSIX 模式：中间产物统一落 artifacts\<Config>\<平台>\，
-                     bin\<Config>\<平台>\ 保留为「纯安装包区」，只放最终 .msix。
-         便携版模式：可运行产物落 dist\<Config>\<平台>\（整个文件夹可拷走直接双击），
-                     中间产物落 obj\<Config>\<平台>\，不污染可运行目录。
+                     bin\<Config>\<平台>\ 只放最终 .msix。
+         便携版模式：可运行产物落 bin\<Config>\<平台>\Portable\（整个文件夹可拷走直接双击），
+                      中间产物落 obj\<Config>\<平台>\，不污染可运行目录。
 
-         ★ 便携版为什么不用 bin\ ：bin\<Config>\<平台>\ 是 MSIX 安装包的输出位置，
-           两种产物共用会让 .msix 混进便携版目录（实测混入 1.2GB 历史包）。
+         ★ 便携版为什么放在 bin\<Config>\<平台>\Portable\ 这个子目录：
+           bin\<Config>\<平台>\ 本身就是安装包区，两种产物直接混在一起会互相干扰
+           （实测便携版目录里混入过 1.2GB 历史 .msix）。
+           收进 Portable\ 子目录后，同一个平台目录下「安装包在根、便携版在子目录」，
+           层级清晰，且 build-msix.ps1 只往根目录写 .msix、不会动这个子目录。
          ★ 两种模式路径完全隔离，可在同一台机器上反复切换构建而互不污染。 -->
 
     <!-- ① MSIX 模式（默认） -->
@@ -35,14 +38,14 @@
     <OutputPath          Condition="'$(SightoHearMsix)' == 'true'">$(MSBuildThisFileDirectory)artifacts\$(OutputConfigurationFolder)\$(OutputPlatformFolder)\</OutputPath>
     <BaseIntermediateOutputPath Condition="'$(SightoHearMsix)' == 'true'">$(MSBuildThisFileDirectory)artifacts\$(OutputConfigurationFolder)\$(OutputPlatformFolder)\obj\</BaseIntermediateOutputPath>
 
-    <!-- ② 便携版模式 -->
-    <BaseOutputPath      Condition="'$(SightoHearMsix)' != 'true'">$(MSBuildThisFileDirectory)dist\</BaseOutputPath>
-    <OutputPath          Condition="'$(SightoHearMsix)' != 'true'">$(MSBuildThisFileDirectory)dist\$(OutputConfigurationFolder)\$(OutputPlatformFolder)\</OutputPath>
+    <!-- ② 便携版模式（bin\<Config>\<平台>\Portable\） -->
+    <BaseOutputPath      Condition="'$(SightoHearMsix)' != 'true'">$(MSBuildThisFileDirectory)bin\</BaseOutputPath>
+    <OutputPath          Condition="'$(SightoHearMsix)' != 'true'">$(MSBuildThisFileDirectory)bin\$(OutputConfigurationFolder)\$(OutputPlatformFolder)\Portable\</OutputPath>
     <BaseIntermediateOutputPath Condition="'$(SightoHearMsix)' != 'true'">$(MSBuildThisFileDirectory)obj\$(OutputConfigurationFolder)\$(OutputPlatformFolder)\</BaseIntermediateOutputPath>
 
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
 
-    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**;artifacts\**;dist\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**;artifacts\**</DefaultItemExcludes>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
