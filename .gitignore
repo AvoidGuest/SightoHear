@@ -7,6 +7,8 @@
 [Bb]in/
 [Oo]bj/
 artifacts/
+# 便携版可运行产物（build.ps1 -Target Portable 输出）
+[Dd]ist/
 .temp-preview/
 [Ll]og/
 [Ll]ogs/

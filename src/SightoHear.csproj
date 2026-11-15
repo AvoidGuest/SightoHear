@@ -27,7 +27,15 @@
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <WindowsPackageType>MSIX</WindowsPackageType>
+    <!-- ★★ 双模式：同一个 csproj 既产出 MSIX 安装包，也产出免安装便携版。
+         由 build.ps1 传入 -p:SightoHearMsix=true/false 决定，默认 MSIX（兼容旧行为）。
+           · MSIX    ：WindowsPackageType=MSIX，由 build-msix 流程生成 AppxManifest + resources.pri
+           · Portable：WindowsPackageType=None，直接双击 bin\<配置>\<平台>\SightoHear.exe 运行
+         两者的其余差异（Bootstrap / 瘦身 / 输出目录）也都由这个开关派生，
+         不需要再维护两份代码或第二个仓库。 -->
+    <SightoHearMsix Condition="'$(SightoHearMsix)' == ''">true</SightoHearMsix>
+    <WindowsPackageType Condition="'$(SightoHearMsix)' == 'true'">MSIX</WindowsPackageType>
+    <WindowsPackageType Condition="'$(SightoHearMsix)' != 'true'">None</WindowsPackageType>
     <SelfContained>true</SelfContained>
     <!-- ★ 根因修复：MSIX 打包必须用框架依赖（framework-dependent）部署，而非自包含。
          Windows App SDK 自包含（WindowsAppSDKSelfContained=true）仅支持 unpackaged（非打包）应用；
@@ -50,12 +58,23 @@
          详见 microsoft/WindowsAppSDK#3137、#6117。禁用后由 Framework 包的 PackageDependency
          声明正常加载运行时，不影响 WinUI 3 / AppLifecycle / MRT Core 等核心功能。 -->
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
+    <!-- ★ Bootstrap 必须跟随 WindowsAppSDKSelfContained 反转（两次崩溃换来的结论）：
+         · SelfContained=true  → 运行时 DLL 就在输出目录，Bootstrap 会去抢注「已安装的」运行时，
+                                 版本不匹配时直接 0xC0000409。
+         · SelfContained=false → 必须打开 Bootstrap，由它查找机器上已安装的 Windows App Runtime；
+                                 关掉会导致 Main 之前 COMException(E_NOINTERFACE) 崩溃。
+         两种发布模式（MSIX / Portable）都走 WindowsAppSDKSelfContained=false，故结果都是 true；
+         写成条件是为了将来切回自包含时不会踩坑。 -->
+    <WindowsAppSdkBootstrapInitialize Condition="'$(WindowsAppSDKSelfContained)' != 'true'">true</WindowsAppSdkBootstrapInitialize>
+    <WindowsAppSdkBootstrapInitialize Condition="'$(WindowsAppSDKSelfContained)' == 'true'">false</WindowsAppSdkBootstrapInitialize>
     <!-- 使用自定义 Program.Main（App.xaml.cs 中定义）替代 XAML 生成的 Main，
          便于打包启动诊断与异常捕获（配合 DISABLE_XAML_GENERATED_MAIN）。
          注意：框架依赖模式依赖 Bootstrap auto-initializer，因此【不能】再设
          WindowsAppSdkBootstrapInitialize=false（那会禁用自动初始化，导致框架包运行时无法加载）。 -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-    <WindowsXamlAot>false</WindowsXamlAot>
+    <!-- ★ 已删除 <WindowsXamlAot>：该属性在 Windows App SDK 2.3.1 / WinUI 2.3.0 的
+         targets 与 props 中完全不存在（全 NuGet 缓存搜索无结果），设成 false 或 true
+         都不会产生任何效果，只是历史遗留的噪音配置。 -->
     <WindowsXamlLocalAssembly>SightoHear</WindowsXamlLocalAssembly>
     <NoWarn>CA1416</NoWarn>
     <!-- 本机未安装 Windows SDK，cswinrt 无法从注册表定位 SDK 元数据；
@@ -78,7 +97,7 @@
            · CsWinRT AOT 优化器：Windows App SDK 要求显式置 true 才支持 PublishAot
              （否则构建报 "requires CsWinRTAotOptimizerEnabled set to true"）。
            · 运行时开关见下方 Publish Properties：PublishTrimmed 由 AOT 隐含，不能显式关闭。 -->
-    <PublishAot Condition="'$(Configuration)' != 'Debug' and '$(SightoHearMsix)' != 'true'">true</PublishAot>
+    <PublishAot Condition="'$(PublishAot)' == '' and '$(Configuration)' != 'Debug'">true</PublishAot>
     <CsWinRTAotOptimizerEnabled>true</CsWinRTAotOptimizerEnabled>
     <!-- CsWinRT 的 AOT 分析器级别（0=关，1=默认，2=同时检查内建 WinRT 映射类型）。
          Level 1 只是为避免噪声的默认值，Level 2 才是应当启用并逐条评估的级别。 -->
@@ -183,7 +202,13 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.ColorPicker" Version="8.2.251219" />
-    <PackageReference Include="CommunityToolkit.WinUI.UI.Controls" Version="7.1.2" />
+    <!-- ★ 已移除 CommunityToolkit.WinUI.UI.Controls 7.1.2：
+         该版本是 WinUI 3 早期的 Toolkit，其 XamlTypeInfo 使用旧式反射元数据提供器
+         （AOT 审计报 IL2059: XamlUserType.RunInitializer），且明确未声明 IsAotCompatible。
+         实测本项目 XAML/代码中没有任何 `CommunityToolkit.WinUI.UI.*` 引用
+         （所有 xmlns 均为 8.x 的 CommunityToolkit.WinUI[.Controls]），
+         保留它只会让旧式 XAML 元数据参与程序集扫描，干扰 AOT 下的类型解析。
+         若将来需要 DataGrid/Markdown 等 7.1.2 独有控件，请优先找 8.x 替代品。 -->
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="ComputeSharp" Version="3.2.0" />
     <PackageReference Include="ComputeSharp.D2D1" Version="3.2.0" />
@@ -237,6 +262,27 @@
     <!-- Native AOT 隐含 PublishTrimmed=true，显式写 False 会被 ILCompiler 拒绝；仅在非 AOT 时关闭裁剪。 -->
     <PublishTrimmed Condition="'$(PublishAot)' != 'true'">False</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- ★★ 快速增量编译通道（build.ps1 -Target Fast）
+       WinUI 的 MarkupCompilePass1 / MarkupCompilePass2 / XamlPreCompile 在
+       Microsoft.UI.Xaml.Markup.Compiler.interop.targets 里【没有定义 Inputs/Outputs】，
+       MSBuild 因此永远无法判定它们可跳过 —— 实测连「什么都不改」的空构建都要 31 秒，
+       其中 30.5 秒全花在把 28 个 XAML 页原样重编一遍上（目标耗时：Pass2 20.9s +
+       XamlPreCompile 5.1s + Pass1 4.5s，而真正的 Csc 只有 5.1s）。
+
+       绕过办法：用 `-t:Compile` 只跑 C# 编译，再把上一次 Pass1/Pass2 生成的
+       *.g.cs / *.g.i.cs 重新链进编译。这两类文件内容没变就无需重生成：
+         · *.g.i.cs → InitializeComponent()、控件字段、IBinding 接口定义
+         · *.g.cs   → x:Bind 的强类型绑定实现
+       实测 37 秒 → 7 秒。
+
+       ★ 仅在显式传入 -p:XamlFastPath=true 时生效，正常构建完全不受影响。
+       ★ build.ps1 会先校验「.xaml 没有比生成代码更新」，不满足就回退完整构建，
+         所以这条通道不会产出与实际 XAML 不一致的 dll。 -->
+  <ItemGroup Condition="'$(XamlFastPath)' == 'true'">
+    <Compile Include="$(IntermediateOutputPath)*.g.cs" />
+    <Compile Include="$(IntermediateOutputPath)*.g.i.cs" />
+  </ItemGroup>
 
   <!-- 关键修复：SkiaSharp.NativeAssets.WinUI 传递引入的 ANGLE（libEGL.dll + libGLESv2.dll，OpenGL ES 实现）
        会与 libmpv 的桌面 OpenGL 渲染上下文冲突，导致超分模式 mpv_render_context_create 阶段
@@ -314,10 +360,16 @@
                                   SDK 附带的工具型二进制，本项目不调用。
        7) 后台任务/推送/会话 IPC 的 ProxyStub 3 个：非打包应用不用。
 
-       ★ MSIX 打包模式下不执行瘦身：
+       ★ MSIX 打包模式下不执行本目标（-p:SightoHearMsix=true 时跳过，见 Condition）：
          AppxManifest 的 PackageDependency、.winmd、语言资源都参与 makeappx 打包与
-         resources.pri 生成，删掉会破坏打包或安装后缺资源。
-         通过 -p:SightoHearMsix=true 让 build-msix.ps1 显式跳过（见 Condition）。
+         resources.pri 生成，在【构建输出目录】里删掉会破坏打包或安装后缺资源。
+
+         ★ 包内瘦身改在 build-msix.ps1 里做：等 resources.pri 与 AppxManifest.xml 都生成完毕、
+           只差 MakeAppx 这一步时，再对 payload 目录剔除运行期不需要的文件
+           （*.winmd / *.lib / *_app.dll / mscordac* / mscordbi* / DiaSymReader /
+            Microsoft.Windows.AI.* / 工具型 exe / ProxyStub 等）。
+           实机验证：401 → 367 个文件，137.1 → 133.8 MB，安装后启动与全部页面正常。
+           需要排查时可加 build-msix.ps1 -SkipPayloadSlim 跳过。
 
        ★ 绝对不能删（删了就起不来 / 功能失效，均已实测）：
          WinUIEdit.dll              XAML 编辑/输入核心，删掉进程直接起不来。
@@ -372,6 +424,28 @@
       <_SlimOptionalFiles Include="@(_SlimOptionalNames->'$(_SlimPublishDir)%(Identity)')"
                           Condition="'$(_SlimPublishDir)' != ''" />
     </ItemGroup>
+
+    <!-- ★ VCRT 转发桩（*_app.dll）：Microsoft.VCRTForwarders.140 只为「把 API Set 转发到
+         VC++ 运行库」而存在。本项目全部原生依赖（FFmpeg / libmpv / SkiaSharp / Win2D /
+         WindowsAppSDK）都吃 Windows 自带的 UCRT，无人引用这 10 个桩。
+         验证方式：把输出目录全部 DLL 读成字节流扫描导入表，
+         除它们自身互相引用外没有任何命中；删掉后启动 + 遍历页面均正常。 -->
+    <ItemGroup>
+      <_SlimVcrtForwarders Include="$(TargetDir)*_app.dll" />
+      <_SlimVcrtForwarders Include="$(_SlimPublishDir)*_app.dll"
+                           Condition="'$(_SlimPublishDir)' != ''" />
+    </ItemGroup>
+    <Delete Files="@(_SlimVcrtForwarders)" />
+
+    <!-- ★ Bootstrap 只在「自带 WinAppSDK 运行时」时才是冗余的；
+         框架依赖模式（本项目两种发布模式的默认）下它是启动链的第一步，删掉进程直接 0xC0000409。 -->
+    <ItemGroup Condition="'$(WindowsAppSDKSelfContained)' == 'true'">
+      <_SlimBootstrap Include="$(TargetDir)Microsoft.WindowsAppRuntime.Bootstrap.dll" />
+      <_SlimBootstrap Include="$(_SlimPublishDir)Microsoft.WindowsAppRuntime.Bootstrap.dll"
+                      Condition="'$(_SlimPublishDir)' != ''" />
+    </ItemGroup>
+    <Delete Files="@(_SlimBootstrap)" />
+
     <Delete Files="@(_SlimOptionalFiles)" />
 
     <!-- ③ 语言目录：只保留 5 个，其余按目录名精确删除。

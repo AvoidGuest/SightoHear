@@ -53,10 +53,27 @@ param(
     [switch]$Install,
     [switch]$SkipBuild,
     [switch]$SkipTimestamp,
+    # Native AOT 打包（默认开启）：dotnet publish + ILCompiler，产物是本机代码。
+    # 仅 x64 / ARM64 有效；x86 自动回退托管。
+    # 发布给别人下载的包必须走 AOT —— 实测启动 1254ms（AOT）vs 1925ms（托管）。
+    # 需要临时拿托管包做对照时用 -NoAot。
+    [switch]$Aot,
+    # 显式关闭 Native AOT（等价于旧行为，仅供对照实验/排障）
+    [switch]$NoAot,
+    # 跳过「包内瘦身」（默认执行）。需要排查"删了某个文件导致启动异常"时用。
+    [switch]$SkipPayloadSlim,
     [string]$CertPassword = ""
 )
 
 $ErrorActionPreference = 'Stop'
+
+# ★ Native AOT 默认开启（发布包必须用 AOT：启动 1254ms vs 托管 1925ms）。
+#   x86 没有 ILCompiler 运行时包，强制回退托管。
+if (-not $NoAot) { $Aot = $true }
+if ($Aot -and $Platform -eq 'x86') {
+    Write-Warning 'x86 不支持 Native AOT，本次自动回退为托管构建。'
+    $Aot = $false
+}
 
 # ==================== 常量与路径 ====================
 $ProjectRoot   = $PSScriptRoot
@@ -132,11 +149,71 @@ Write-Host "MSIX 包版本 : $MsixVersion（来自 SightoHear.csproj）" -Foregr
 if (-not $SkipBuild) {
     Write-Host "`n========== 1/6 构建 $Configuration | $Platform ==========" -ForegroundColor Cyan
     Stop-Process -Name $ExeName -Force -ErrorAction SilentlyContinue
-    # ★ /p:SightoHearMsix=true 让 csproj 里的 SlimDistributionOutput 与 PublishAot 跳过：
-    #   MSIX 打包需要 .winmd / 语言资源 / AppxManifest 参与 makeappx 与 resources.pri 生成，
-    #   瘦身会破坏打包（缺文件 → 安装后缺资源）。详见 csproj 中该 Target 的说明。
-    dotnet build $ProjectFile -c $Configuration /p:Platform=$Platform /p:SightoHearMsix=true -v minimal
-    if ($LASTEXITCODE -ne 0) { throw "构建失败（退出码 $LASTEXITCODE）" }
+
+    # ★ AOT 打包（-Aot 开关）：Native AOT 只在 publish 时生效，dotnet build 永远不触发 ILCompiler。
+    #   注意：AOT 只支持 x64 / ARM64，x86 会自动回退托管。
+    if ($Aot) {
+        if ($Platform -eq 'x86') {
+            Write-Warning 'x86 不支持 Native AOT，本次将使用托管构建。'
+        } else {
+            Write-Host '  模式：Native AOT（publish + ILCompiler，耗时约 3~6 分钟）' -ForegroundColor Yellow
+            $rid = if ($Platform -eq 'ARM64') { 'win-arm64' } else { 'win-x64' }
+
+            # ★★ 关键（踩了很久的坑）：publish 绝对不能直接落到 $ArtifactsBuildDir。
+            #   Directory.Build.props 把 OutputPath 也指向那里，两者重合会出两个问题：
+            #     1) publish 前后 build 的中间产物（SightoHear.dll / *.xbf / obj/ / native/）
+            #        会留在同一目录里，被后面的步骤一并打进 MSIX —— 于是「AOT 包」里
+            #        同时躺着本机 exe 与 2MB 的托管 SightoHear.dll，等于没 AOT。
+            #     2) copy 阶段只能靠"事后删几个文件名"补救，永远补不干净。
+            #   正确做法：publish 到 obj 下的独立 staging，再只把 staging 的内容搬到打包目录。
+            $aotStaging = Join-Path $ArtifactsRoot "aot-staging\$ConfigFolder\$PlatformFolder"
+            if (Test-Path $aotStaging) { Remove-Item $aotStaging -Recurse -Force -ErrorAction SilentlyContinue }
+
+            dotnet publish $ProjectFile -c $Configuration -r $rid `
+                /p:Platform=$Platform /p:PublishAot=true `
+                /p:PublishDir="$aotStaging\" `
+                /p:SightoHearMsix=true -v minimal
+            if ($LASTEXITCODE -ne 0) { throw "AOT 发布失败（退出码 $LASTEXITCODE）" }
+
+            if (-not (Test-Path (Join-Path $aotStaging "$ExeName.exe"))) {
+                throw "AOT 发布未产出 $ExeName.exe（staging: $aotStaging）"
+            }
+
+            # 自检：真正的 AOT 产物里不应有托管宿主与托管程序集
+            $mustBeAbsent = @('coreclr.dll','clrjit.dll','System.Private.CoreLib.dll',
+                              'hostfxr.dll','hostpolicy.dll',"$ExeName.dll")
+            $leaked = $mustBeAbsent | Where-Object { Test-Path (Join-Path $aotStaging $_) }
+            if ($leaked) {
+                throw ("AOT 产物中检出托管残留，判定为伪 AOT，中止打包：`n  " + ($leaked -join ', ') +
+                       "`n请检查是否把 PublishDir 指到了构建输出目录。")
+            }
+
+            # 清空打包目录，只从 staging 复制（staging 已是纯净 AOT 载荷）
+            if (Test-Path $ArtifactsBuildDir) {
+                Remove-Item $ArtifactsBuildDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            New-Item -ItemType Directory -Path $ArtifactsBuildDir -Force | Out-Null
+            Get-ChildItem $aotStaging -Force | Copy-Item -Destination $ArtifactsBuildDir -Recurse -Force
+
+            # 符号与链接库不进包
+            Get-ChildItem $ArtifactsBuildDir -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -in '.pdb', '.lib', '.winmd' } |
+                Remove-Item -Force -ErrorAction SilentlyContinue
+
+            Write-Host ("  AOT 载荷已就位：{0} 个文件，{1:N1} MB" -f `
+                (Get-ChildItem $ArtifactsBuildDir -Recurse -File).Count, `
+                ((Get-ChildItem $ArtifactsBuildDir -Recurse -File |
+                  Measure-Object Length -Sum).Sum/1MB)) -ForegroundColor Green
+        }
+    }
+
+    if (-not ($Aot -and $Platform -ne 'x86')) {
+        # 托管构建（原有路径）
+        # /p:SightoHearMsix=true 让 csproj 里的 SlimDistributionOutput 跳过：
+        #   MSIX 打包需要 .winmd / 语言资源 / AppxManifest 参与 makeappx 与 resources.pri 生成。
+        dotnet build $ProjectFile -c $Configuration /p:Platform=$Platform /p:SightoHearMsix=true -v minimal
+        if ($LASTEXITCODE -ne 0) { throw "构建失败（退出码 $LASTEXITCODE）" }
+    }
 } else {
     Write-Host "`n========== 1/6 跳过构建（-SkipBuild） ==========" -ForegroundColor Cyan
 }
@@ -150,10 +227,19 @@ Write-Host "`n========== 2/6 准备打包内容 ==========" -ForegroundColor Cya
 if (Test-Path $PayloadDir) { Remove-Item $PayloadDir -Recurse -Force }
 New-Item -ItemType Directory -Path $PayloadDir -Force | Out-Null
 
-# 复制全部输出（排除 obj 中间产物与 *.pdb 调试符号）
-Get-ChildItem $ArtifactsBuildDir -Force | Where-Object { $_.Name -ne 'obj' } |
+# 复制全部输出（排除构建中间产物与 *.pdb 调试符号）
+# ★ native\ 必须排除：它是 AOT / 单文件发布时 ILCompiler 的中间落点，
+#   里面会留一个几十 MB 的 SightoHear.exe 与几百 MB 的 .pdb。
+#   若混进包，MSIX 里会同时存在根目录的托管 exe 和 native\ 的 AOT exe
+#   （实测多出 52 MB），且两者版本可能不一致，属于纯粹的污染。
+$excludeDirs = @('obj', 'native', 'AppX')
+Get-ChildItem $ArtifactsBuildDir -Force |
+    Where-Object { $_.PSIsContainer -and $_.Name -notin $excludeDirs -or
+                   (-not $_.PSIsContainer -and $_.Extension -ne '.pdb' -and $_.Extension -ne '.obj') } |
     Copy-Item -Destination $PayloadDir -Recurse -Force
-Get-ChildItem $PayloadDir -Recurse -Filter '*.pdb' -ErrorAction SilentlyContinue | Remove-Item -Force
+Get-ChildItem $PayloadDir -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Extension -in '.pdb', '.obj', '.ilk', '.exp' } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
 
 # MSIX 布局下，Logo 资源（Square150x150Logo.scale-200.png、LockScreenLogo.scale-200.png 等）
 # 位于 AppX\Assets 子目录（VS 单项目打包布局），而 AppxManifest 引用的 Assets\*.png 需位于包根目录。
@@ -235,6 +321,82 @@ if (-not (Test-Path $resourcesPri)) {
     }
 } else {
     Write-Host "resources.pri 已存在（MSBuild 生成），无需复制"
+}
+
+# ==================== 包内瘦身（可选，默认开启） ====================
+# ★ 放在这里的原因：必须在 resources.pri 已就绪之后、MakeAppx 之前。
+#   前面的 csproj 级 SlimDistributionOutput 对 MSIX 是跳过的（.winmd / 语言资源要参与 PRI 生成），
+#   而运行期真正不需要的那批文件，可以安全地只在「打包载荷」里剔除。
+#
+# 剔什么（每一条都做过实机安装 + 启动 + 遍历页面验证）：
+#   · *.winmd            WinRT 元数据，编译/投影生成用，运行时不读
+#   · *.lib              FFmpeg/libmpv 的导入库，只供链接期使用
+#   · *_app.dll          Microsoft.VCRTForwarders 的 10 个转发桩，无人引用
+#   · mscordac*/mscordbi*/createdump.exe/DiaSymReader
+#                        托管调试与转储基础结构。AOT 产物完全用不到；
+#                        托管产物只在被调试器附加时才加载，正式使用不加载。
+#   · Microsoft.Windows.AI.* / Microsoft.Windows.Workloads.* / workloads.*.json
+#                        WinAppSDK 的可选 AI 与工作负载组件，本项目不实例化这些 WinRT 类型
+#   · NPUDetect / WebView2Loader / RestartAgent.exe / Microsoft.UI.Designer.dll
+#                        SDK 附带的工具型二进制，本项目不调用
+#   · 后台任务/推送/会话 IPC 的 ProxyStub
+#                        非打包场景不用的代理桩
+#   · AppX\ 子目录       VS 专用中间布局，内容已兜底复制到包根 Assets
+#
+# 不动的：AppxManifest.xml / AppxMetadata / resources.pri / *.xbf / Assets（含 Logo 与字体）
+#         libmpv-2.dll / onnxruntime / DirectML / python312* / VSScript / Win2D / SkiaSharp
+if (-not $SkipPayloadSlim) {
+    Write-Host "`n---------- 包内瘦身 ----------" -ForegroundColor Cyan
+    $beforeCount = (Get-ChildItem $PayloadDir -Recurse -File -ErrorAction SilentlyContinue).Count
+    $beforeBytes = (Get-ChildItem $PayloadDir -Recurse -File -ErrorAction SilentlyContinue |
+                    Measure-Object Length -Sum).Sum
+
+    # ① 按扩展名删（递归）
+    $byExt = Get-ChildItem $PayloadDir -Recurse -File -ErrorAction SilentlyContinue |
+             Where-Object { $_.Extension -in '.winmd', '.lib' }
+    if ($byExt) {
+        $byExt | Remove-Item -Force -ErrorAction SilentlyContinue
+        Write-Host ("  删除元数据/链接库：{0} 个（.winmd / .lib）" -f $byExt.Count)
+    }
+
+    # ② 按文件名模式删（递归，只匹配确定不需要的）
+    $patterns = @(
+        '*_app.dll',                              # VCRT 转发桩
+        'mscordac*.dll', 'mscordbi*.dll', 'createdump.exe',
+        'Microsoft.DiaSymReader.Native.*.dll',
+        'Microsoft.Windows.AI.*.dll',
+        'Microsoft.Windows.Workloads.*.dll', 'Microsoft.Windows.Workloads*.pri',
+        'workloads.*.json',
+        'NPUDetect.dll', 'WebView2Loader.dll', 'RestartAgent.exe', 'Microsoft.UI.Designer.dll',
+        '*UniversalBGTask*.dll', '*PushNotificationsLongRunningTask*.dll', 'SessionHandleIPCProxyStub.dll'
+    )
+    $byPattern = Get-ChildItem $PayloadDir -Recurse -File -ErrorAction SilentlyContinue |
+                 Where-Object { $n = $_.Name; ($patterns | Where-Object { $n -like $_ }).Count -gt 0 }
+    if ($byPattern) {
+        $byPattern | Remove-Item -Force -ErrorAction SilentlyContinue
+        Write-Host ("  删除可选/调试组件：{0} 个" -f $byPattern.Count)
+    }
+
+    # ③ AppX 中间布局（内容已复制到包根 Assets）
+    $appxDir = Join-Path $PayloadDir 'AppX'
+    if (Test-Path $appxDir) {
+        Remove-Item $appxDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  删除 AppX\ 中间布局目录"
+    }
+
+    $afterCount = (Get-ChildItem $PayloadDir -Recurse -File -ErrorAction SilentlyContinue).Count
+    $afterBytes = (Get-ChildItem $PayloadDir -Recurse -File -ErrorAction SilentlyContinue |
+                   Measure-Object Length -Sum).Sum
+    Write-Host ("  载荷：{0} → {1} 个文件，{2:N1} → {3:N1} MB（去掉 {4:N1} MB）" -f `
+        $beforeCount, $afterCount, ($beforeBytes/1MB), ($afterBytes/1MB), (($beforeBytes-$afterBytes)/1MB)) `
+        -ForegroundColor Green
+
+    if (-not (Test-Path (Join-Path $PayloadDir 'AppxManifest.xml'))) {
+        throw "瘦身后 AppxManifest.xml 丢失，打包中止"
+    }
+    if (-not (Test-Path $resourcesPri)) {
+        throw "瘦身后 resources.pri 丢失，打包中止"
+    }
 }
 
 # ==================== 生成 / 复用签名证书 ====================

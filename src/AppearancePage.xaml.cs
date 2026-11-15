@@ -49,6 +49,24 @@ namespace SightoHear
                 ColorPickerButton_SelectedColorChanged);
         }
 
+        /// <summary>
+        /// 给「主题颜色」网格的每个项容器直接设背景，避免 XAML 绑定。
+        ///
+        /// ★ Native AOT：ItemsSource 的元素类型是 WinRT 原生 <see cref="Brush"/>。
+        ///   `Background="{Binding}"` 需要 AOT 运行时为 Brush 查询 ICustomProperty，
+        ///   而 CsWinRT 无法为系统类型生成该实现，展开「主题颜色」时会崩 0xC000027B。
+        ///   因此在 DataTemplate 里不放任何绑定，改由本方法在容器实化时赋值。
+        /// </summary>
+        private void ColorGridView_ContainerContentChanging(
+            ListViewBase sender, ContainerContentChangingEventArgs args)
+        {
+            if (args.InRecycleQueue) return;
+            if (args.Item is not Brush brush) return;
+
+            if (args.ItemContainer.ContentTemplateRoot is Border border)
+                border.Background = brush;
+        }
+
         private void ColorPickerButton_SelectedColorChanged(DependencyObject sender, DependencyProperty dp)
         {
             if (_isLoadingSettings) return;

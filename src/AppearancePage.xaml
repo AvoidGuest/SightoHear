@@ -53,10 +53,18 @@
                                               SelectionMode="Single"
                                               IsItemClickEnabled="False"
                                               SelectedIndex="1"
+                                              ContainerContentChanging="ColorGridView_ContainerContentChanging"
                                               SelectionChanged="ColorGridView_SelectionChanged">
                                         <GridView.ItemTemplate>
-                                            <DataTemplate x:DataType="Brush">
-                                                <Border Width="32" Height="32" CornerRadius="4" Background="{Binding}" />
+                                            <!-- ★ Native AOT：这里不能对 Brush 用 {Binding}。
+                                                 项本身就是 Brush（WinRT 原生类型），无路径 {Binding}
+                                                 需要 AOT 运行时为 Brush 查询 ICustomProperty，
+                                                 而 CsWinRT 无法为系统类型生成该实现 —— 展开「主题颜色」时
+                                                 直接崩 0xC000027B（combase E_NOINTERFACE）。
+                                                 因此模板留空，由 ColorGridView_ContainerContentChanging
+                                                 在容器实化时用代码设背景。 -->
+                                            <DataTemplate>
+                                                <Border Width="32" Height="32" CornerRadius="4" />
                                             </DataTemplate>
                                         </GridView.ItemTemplate>
                                         <GridView.ItemContainerStyle>

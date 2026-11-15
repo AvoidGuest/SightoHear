@@ -70,20 +70,12 @@ SightoHear 是一款面向 Windows 10 20H1+ 与 Windows 11 的原生桌面应用
 
 ## 📥 下载安装
 
-前往 [Releases](https://github.com/AvoidGuest/SightoHear/releases) 页面下载最新 `.msix` 安装包，双击即可安装。
+前往 [Releases](https://github.com/AvoidGuest/SightoHear/releases) 页面下载：
 
-> 若未开启旁加载，请先在「设置 → 系统 → 开发者选项」中打开**开发人员模式**或**旁加载应用**。
+- **MSIX 安装包**（`.msix`）—— 双击安装，开始菜单可见
+- **便携版**（`Portable-x64.zip`）—— 解压后直接双击 `SightoHear.exe`，无需安装
 
-你也可以使用项目内置脚本自行打包安装：
-
-```powershell
-# 一键打包并安装（Beta 版）
-Stop-Process -Name "SightoHear" -Force -ErrorAction SilentlyContinue
-.\build-msix.ps1 -Install
-
-# 打包正式版
-.\build-msix.ps1 -Configuration Release -Platform x64
-```
+> 安装 MSIX 若提示未开启旁加载，请先在「设置 → 系统 → 开发者选项」中打开**开发人员模式**或**旁加载应用**。
 
 ## 🛠️ 技术栈
 
@@ -123,16 +115,22 @@ SightoHear 由以下开源框架与库驱动：
    dotnet restore SightoHear.csproj
    ```
 
-3. 打包并安装（推荐）：
+3. 按需选择构建目标（统一入口 `build.ps1`）：
+
+   | 目标 | 命令 | 产物 | 耗时 |
+   |------|------|------|------|
+   | 快速迭代 | `.\build.ps1 -Target Fast` | `dist\Debug\x64\`（托管） | 约 8 秒 |
+   | 便携版 | `.\build.ps1 -Target Portable` | `dist\Release\x64\`（Native AOT） | 约 2 分钟 |
+   | MSIX 安装包 | `.\build.ps1 -Target Msix` | `bin\Release\x64\*.msix` | 约 5 分钟 |
+   | 两种都要 | `.\build.ps1 -Target All` | 以上两者 | 约 4.5 分钟 |
+
+   > 改完 C# 用 `-Target Fast`：它复用已生成的 XAML 分部类，只重编 C#。
+   > 改过 `.xaml` 时会自动回退完整构建，不会产出与界面不一致的程序。
+
+4. 安装 MSIX（开发调试）：
 
    ```powershell
-   .\build-msix.ps1 -Install
-   ```
-
-4. 或非打包构建（调试用）：
-
-   ```powershell
-   dotnet build SightoHear.csproj -c Debug /p:Platform=x64 -v minimal
+   .\build.ps1 -Target Msix -Install
    ```
 
 ## 📄 开源致谢

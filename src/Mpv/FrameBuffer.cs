@@ -34,14 +34,18 @@ public unsafe partial class FrameBuffer : FrameBufferBase
 
     public FrameBuffer(
         RenderContext context,
-        int frameBufferWidth,
-        int frameBufferHeight,
+        double frameBufferWidth,
+        double frameBufferHeight,
         double compositionScaleX,
         double compositionScaleY)
     {
         Context = context;
-        BufferWidth = Convert.ToInt32(frameBufferWidth * compositionScaleX);
-        BufferHeight = Convert.ToInt32(frameBufferHeight * compositionScaleY);
+        // ★ 尺寸计算必须与 RenderControl.Draw() 里的判定逻辑用同一条公式，
+        //   否则「建出来的尺寸」与「判定期望的尺寸」永远差 1 像素，
+        //   会导致帧缓冲无限重建（表现为播放时黑屏闪烁、画面抽搐）。
+        //   参数故意用 double：一旦在调用方先 (int) 截断，就会复现该 bug。
+        BufferWidth = FrameBufferBase.ComputePixels(frameBufferWidth, compositionScaleX);
+        BufferHeight = FrameBufferBase.ComputePixels(frameBufferHeight, compositionScaleY);
 
         IDXGISwapChain1* swapChain;
         {

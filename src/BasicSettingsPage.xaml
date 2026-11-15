@@ -55,19 +55,19 @@
                         <StackPanel>
                             <ItemsControl ItemsSource="{x:Bind VideoPaths}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:DataType="x:String">
                                         <Grid Margin="0,2" Padding="0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock
-                                                Text="{Binding}"
+                                                Text="{x:Bind}"
                                                 VerticalAlignment="Center"
                                                 TextTrimming="CharacterEllipsis" />
                                             <Button
                                                 Grid.Column="1"
-                                                Tag="{Binding}"
+                                                Tag="{x:Bind}"
                                                 Padding="8"
                                                 Background="Transparent"
                                                 BorderThickness="0"
@@ -138,19 +138,19 @@
                         <StackPanel>
                             <ItemsControl ItemsSource="{x:Bind MusicPaths}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:DataType="x:String">
                                         <Grid Margin="0,2" Padding="0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock
-                                                Text="{Binding}"
+                                                Text="{x:Bind}"
                                                 VerticalAlignment="Center"
                                                 TextTrimming="CharacterEllipsis" />
                                             <Button
                                                 Grid.Column="1"
-                                                Tag="{Binding}"
+                                                Tag="{x:Bind}"
                                                 Padding="8"
                                                 Background="Transparent"
                                                 BorderThickness="0"
@@ -221,19 +221,19 @@
                         <StackPanel>
                             <ItemsControl ItemsSource="{x:Bind ImagePaths}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:DataType="x:String">
                                         <Grid Margin="0,2" Padding="0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock
-                                                Text="{Binding}"
+                                                Text="{x:Bind}"
                                                 VerticalAlignment="Center"
                                                 TextTrimming="CharacterEllipsis" />
                                             <Button
                                                 Grid.Column="1"
-                                                Tag="{Binding}"
+                                                Tag="{x:Bind}"
                                                 Padding="8"
                                                 Background="Transparent"
                                                 BorderThickness="0"

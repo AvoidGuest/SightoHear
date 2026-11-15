@@ -38,6 +38,10 @@ public sealed unsafe partial class RenderControl : OpenGLRenderControlBase<Frame
     // ── 重建防抖 ──
     private long _lastRebuildMs;
     private const long RebuildCooldownMs = 200;
+    // ── 重建熔断：防止「判定尺寸 ≠ 实建尺寸」造成的无限重建（黑闪抽搐）──
+    private int _rebuildAttempts;
+    private bool _rebuildGuardLogged;
+    private const int MaxRebuildAttempts = 3;
 
     public RenderControl()
     {
@@ -164,8 +168,10 @@ public sealed unsafe partial class RenderControl : OpenGLRenderControlBase<Frame
 
         double scaleX = Volatile.Read(ref _snapshotScaleX);
         double scaleY = Volatile.Read(ref _snapshotScaleY);
-        int newPxW = (int)(snapW * scaleX);
-        int newPxH = (int)(snapH * scaleY);
+        // ★ 必须与 FrameBuffer 构造用同一公式（FrameBufferBase.ComputePixels），
+        //   否则判定与实建尺寸会差 1 像素，导致无限重建、画面黑闪抽搐。
+        int newPxW = FrameBufferBase.ComputePixels(snapW, scaleX);
+        int newPxH = FrameBufferBase.ComputePixels(snapH, scaleY);
         if (newPxW <= 0 || newPxH <= 0) return;
 
         // ── 步骤3：尺寸变化检测 → 触发重建 ──
@@ -185,6 +191,35 @@ public sealed unsafe partial class RenderControl : OpenGLRenderControlBase<Frame
             }
 
             long nowMs = Environment.TickCount64;
+
+            // ★ 循环熔断：如果连续多次重建后「目标尺寸」始终等于「当前尺寸」，
+            //   说明判定逻辑与实际创建之间仍有不一致（或驱动返回的尺寸与请求不同）。
+            //   此时必须停止重建，改用现有帧缓冲继续渲染 —— 宁可短暂拉伸，
+            //   也绝不能陷入「每秒重建十几次交换链」的黑闪抽搐状态。
+            bool sameAsCurrent = FrameBuffer != null &&
+                                 newPxW == FrameBuffer.BufferWidth &&
+                                 newPxH == FrameBuffer.BufferHeight;
+            if (sameAsCurrent)
+            {
+                _rebuildAttempts++;
+                if (_rebuildAttempts >= MaxRebuildAttempts)
+                {
+                    if (!_rebuildGuardLogged)
+                    {
+                        _rebuildGuardLogged = true;
+                        Helpers.AppLogger.Warning(
+                            $"libmpv帧缓冲重建熔断：目标 {newPxW}x{newPxH} 与当前相同，已连续 {_rebuildAttempts} 次。" +
+                            $"停止重建以避免闪烁，沿用现有帧缓冲。");
+                    }
+                    goto renderFrame;
+                }
+            }
+            else
+            {
+                _rebuildAttempts = 0;
+                _rebuildGuardLogged = false;
+            }
+
             if (FrameBuffer != null && nowMs - _lastRebuildMs < RebuildCooldownMs)
             {
                 // 防抖中：继续用旧 FB 正常渲染，不重建
@@ -194,10 +229,12 @@ public sealed unsafe partial class RenderControl : OpenGLRenderControlBase<Frame
                 _lastRebuildMs = nowMs;
 
                 // ★ 创建新帧缓冲（GL 操作，渲染线程安全）
+                //   直接传 DIP + 缩放给 FrameBuffer，由它内部走 FrameBufferBase.ComputePixels，
+                //   与上面 newPxW/newPxH 的判定公式完全一致（不要再在这里 (int) 截断）。
                 FrameBuffer newFb;
                 try
                 {
-                    newFb = new FrameBuffer(Context!, (int)snapW, (int)snapH, scaleX, scaleY);
+                    newFb = new FrameBuffer(Context!, snapW, snapH, scaleX, scaleY);
                 }
                 catch (Exception ex)
                 {
@@ -322,7 +359,7 @@ public sealed unsafe partial class RenderControl : OpenGLRenderControlBase<Frame
         if (FrameBuffer != null || Context == null) return false;
         if (ActualWidth <= 0 || ActualHeight <= 0) return false;
 
-        FrameBuffer = new FrameBuffer(Context, (int)ActualWidth, (int)ActualHeight, ScaleX, ScaleY);
+        FrameBuffer = new FrameBuffer(Context, ActualWidth, ActualHeight, ScaleX, ScaleY);
 
         // ★ Native AOT：替代 _swapChainPanel.As<ISwapChainPanelNative>().SetSwapChain(...)，
         // 原因见 Mpv/ISwapChainPanelNative.cs 顶部说明。
