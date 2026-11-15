@@ -570,8 +570,46 @@ namespace SightoHear.Services.Lyrics
             if (hasAngleSyllableTags)
                 return nonEmptySyllableCount > 0;
 
-            // No <ms> tags — this is a plain LRC line or translation, not word-by-word
-            return false;
+            // ★ 方括号内联逐字时间戳（非标准但很常见的导出写法），例如：
+            //     [00:52.960]我 [00:54.140]心[00:54.420]砰[00:54.600]砰...
+            //   必须识别为"一行多音节"。否则会落到 AddPlainLrcSegments，
+            //   每个时间标签之间的内容被当成一条独立歌词行 —— 渲染出来就是"一个字换一行"。
+            return IsSquareBracketWordByWordLine(matches, nonEmptySyllableCount);
+        }
+
+        /// <summary>
+        /// 判断"方括号内联时间戳"的行是否属于逐字歌词（应合并为一行多音节）。
+        /// </summary>
+        /// <remarks>
+        /// 背景：主流逐字歌词用尖括号 &lt;mm:ss.xxx&gt;，但部分歌词站导出的是
+        /// 方括号 [mm:ss.xxx] 内联在正文中。若不识别，这类行会被当成"一行里有多个独立
+        /// 时间标签"，每个字被拆成一条歌词行，表现为歌词面板里"一个字占一行"。
+        /// <para>
+        /// 与"一行多个时间标签表示重复行/多行"区分开的判定要点：
+        /// <list type="number">
+        /// <item>至少 3 个时间标签 —— "[t]整句[t]整句" 这种双标签行通常是双语或两行，
+        ///       由 TryAddTimedInlineTranslationLine 等分支处理，不在此拦截；</item>
+        /// <item>非空片段平均长度 ≤ 4 个字符 —— 逐字歌词每段只有 1~3 个字，
+        ///       而正常句子的片段明显更长（如"第一句歌词"为 5 字）。</item>
+        /// </list>
+        /// 另注：全部标签连写、中间没有文本的重复行（"[t][t]副歌"）其非空片段只有 1 个，
+        /// 会被下面的 <c>nonEmptySyllableCount &lt; 2</c> 排除，保持原有的"一行变多行"语义。
+        /// </para>
+        /// </remarks>
+        private static bool IsSquareBracketWordByWordLine(MatchCollection matches, int nonEmptySyllableCount)
+        {
+            if (matches.Count < 3 || nonEmptySyllableCount < 2)
+                return false;
+
+            int totalChars = 0;
+            foreach (Match match in matches)
+            {
+                string text = match.Groups[6].Value;
+                if (!string.IsNullOrWhiteSpace(text))
+                    totalChars += text.Trim().Length;
+            }
+
+            return (double)totalChars / nonEmptySyllableCount <= 4.0;
         }
 
         // Checks whether a LyricsLine represents a word-by-word (enhanced) lyric by scanning

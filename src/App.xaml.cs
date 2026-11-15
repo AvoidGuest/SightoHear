@@ -388,6 +388,12 @@ namespace SightoHear
             // 通用：删除本地媒体文件时移入回收站（而非永久删除）
             public static bool DeleteToRecycleBin { get; set; } = true;
 
+            // 设置首页「设为默认应用」横幅的关闭时间（UTC）。
+            // ★ 存时间而不是布尔值：叉号只"暂时"收起横幅，超过冷却期后
+            //   若本软件仍不是默认应用，横幅会重新出现（详见 SettingsHomePage.RefreshDefaultAppBanner）。
+            //   DateTime.MinValue 表示从未关闭过。
+            public static DateTime DefaultAppBannerDismissedAt { get; set; } = DateTime.MinValue;
+
             // ---- 图库设置（GallerySettingsPage） ----
             // 图库卡片高度（基准 146，决定缩略图显示大小）
             public static int GalleryThumbnailHeight { get; set; } = 146;
@@ -571,6 +577,8 @@ namespace SightoHear
                         GalleryRememberSort = galleryRememberSort.GetBoolean();
                     if (root.TryGetProperty("DeleteToRecycleBin", out var deleteToRecycleBin))
                         DeleteToRecycleBin = deleteToRecycleBin.GetBoolean();
+                    if (root.TryGetProperty("DefaultAppBannerDismissedAt", out var bannerDismissedAt))
+                        DefaultAppBannerDismissedAt = bannerDismissedAt.GetDateTime();
                     if (root.TryGetProperty("GalleryThumbnailHeight", out var galleryThumbHeight))
                         GalleryThumbnailHeight = Math.Clamp(galleryThumbHeight.GetInt32(), 100, 240);
                     if (root.TryGetProperty("GalleryThumbnailSize", out var galleryThumbSize))
@@ -727,6 +735,7 @@ namespace SightoHear
                     node["GalleryRememberView"] = GalleryRememberView;
                     node["GalleryRememberSort"] = GalleryRememberSort;
                     node["DeleteToRecycleBin"] = DeleteToRecycleBin;
+                    node["DefaultAppBannerDismissedAt"] = DefaultAppBannerDismissedAt;
                     node["GalleryThumbnailHeight"] = GalleryThumbnailHeight;
                     node["GalleryThumbnailSize"] = GalleryThumbnailSize;
                     node["GalleryPreloadThumbnails"] = GalleryPreloadThumbnails;
@@ -1106,12 +1115,15 @@ namespace SightoHear
             Helpers.AppLogger.UpdateLevel();
 
                         bool autoClean = debug["AutoClean"]?.GetValue<bool>() ?? true;
+                        int cleanDays = 7;
+                        try { cleanDays = (int)(debug["CleanDays"]?.GetValue<double>() ?? 7); } catch { }
+
+                        // 写入 AppLogger，供后台定时清理使用（旧实现只在启动/改设置时清一次，
+                        // 长期不重启就会一直堆积，这正是"7 天保留没生效"的根因）
+                        Helpers.AppLogger.AutoCleanEnabled = autoClean;
+                        Helpers.AppLogger.LogRetentionDays = cleanDays;
                         if (autoClean)
-                        {
-                            int cleanDays = 7;
-                            try { cleanDays = (int)(debug["CleanDays"]?.GetValue<double>() ?? 7); } catch { }
-                            Helpers.AppLogger.CleanupOldLogs(cleanDays);
-                        }
+                            Helpers.AppLogger.CleanupOldLogsInBackground();
 
                         // ── Win2D 性能监测悬浮窗设置（供 MainWindow 构造时读取）──
                         Win2DPerformanceHud.IsEnabled = debug["Win2DPerfEnabled"]?.GetValue<bool>() ?? false;

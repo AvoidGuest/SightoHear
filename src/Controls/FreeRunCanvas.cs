@@ -220,76 +220,103 @@ namespace SightoHear.Controls
             _clock.Restart();
             _lastElapsed = TimeSpan.Zero;
 
-            while (_running)
+            try
             {
-                // 暂停：休眠等待唤醒（避免 busy-wait 空转 CPU）
-                if (_paused)
+                while (_running)
                 {
-                    lock (_pauseLock)
+                    // 暂停：休眠等待唤醒（避免 busy-wait 空转 CPU）
+                    if (_paused)
                     {
-                        while (_running && _paused)
-                            Monitor.Wait(_pauseLock);
+                        lock (_pauseLock)
+                        {
+                            while (_running && _paused)
+                                Monitor.Wait(_pauseLock);
+                        }
+                        if (!_running) break;
+                        // 唤醒后重置计时，避免恢复瞬间 elapsed 大跳变导致动画/流体时间骤进
+                        _clock.Restart();
+                        _lastElapsed = TimeSpan.Zero;
                     }
-                    if (!_running) break;
-                    // 唤醒后重置计时，避免恢复瞬间 elapsed 大跳变导致动画/流体时间骤进
-                    _clock.Restart();
-                    _lastElapsed = TimeSpan.Zero;
-                }
 
-                try
-                {
-                    if (!_swapChainReady)
+                    try
                     {
-                        EnsureSwapChain();
                         if (!_swapChainReady)
                         {
-                            Thread.Sleep(5); // 尚未布局/设备未就绪：稍后重试
+                            EnsureSwapChain();
+                            if (!_swapChainReady)
+                            {
+                                Thread.Sleep(5); // 尚未布局/设备未就绪：稍后重试
+                                continue;
+                            }
+                        }
+
+                        HandleResizeIfNeeded();
+
+                        // 真实时钟计时：Present 间隔（帧率统计以此为准，绝不伪造）
+                        TimeSpan now = _clock.Elapsed;
+                        TimeSpan elapsed = now - _lastElapsed;
+                        _lastElapsed = now;
+
+                        Update?.Invoke(this, new FreeRunUpdateEventArgs { ElapsedTime = elapsed, TotalTime = now });
+
+                        var swapChain = _swapChain;
+                        if (swapChain == null)
+                        {
+                            _swapChainReady = false;
                             continue;
                         }
-                    }
 
-                    HandleResizeIfNeeded();
-
-                    // 真实时钟计时：Present 间隔（帧率统计以此为准，绝不伪造）
-                    TimeSpan now = _clock.Elapsed;
-                    TimeSpan elapsed = now - _lastElapsed;
-                    _lastElapsed = now;
-
-                    Update?.Invoke(this, new FreeRunUpdateEventArgs { ElapsedTime = elapsed, TotalTime = now });
-
-                    using (CanvasDrawingSession ds = _swapChain!.CreateDrawingSession(_clearColor))
-                    {
-                        Draw?.Invoke(this, new FreeRunDrawEventArgs { DrawingSession = ds });
-                    }
-                    _swapChain.Present(0); // syncInterval=0：不等待垂直同步；绝不调用 WaitForVerticalBlank()
-
-                    // 帧率限制：如果设置了最大帧率，确保帧间隔不超过目标时间
-                    if (_maxFps > 0)
-                    {
-                        double targetFrameTimeMs = 1000.0 / _maxFps; // 目标帧时间（毫秒）
-                        double frameElapsedMs = _clock.Elapsed.TotalMilliseconds - now.TotalMilliseconds;
-                        if (frameElapsedMs < targetFrameTimeMs)
+                        using (CanvasDrawingSession ds = swapChain.CreateDrawingSession(_clearColor))
                         {
-                            double sleepTimeMs = targetFrameTimeMs - frameElapsedMs;
-                            // 两级等待策略：
-                            // 1. Thread.Sleep 释放 CPU 时间片（但精度约 15ms，仅用于较长时间）
-                            // 2. Stopwatch 忙等待补齐剩余时间（高精度，不依赖系统计时器分辨率）
-                            if (sleepTimeMs > 4.0)
+                            Draw?.Invoke(this, new FreeRunDrawEventArgs { DrawingSession = ds });
+                        }
+                        swapChain.Present(0); // syncInterval=0：不等待垂直同步；绝不调用 WaitForVerticalBlank()
+
+                        // 帧率限制：如果设置了最大帧率，确保帧间隔不超过目标时间
+                        if (_maxFps > 0)
+                        {
+                            double targetFrameTimeMs = 1000.0 / _maxFps; // 目标帧时间（毫秒）
+                            double frameElapsedMs = _clock.Elapsed.TotalMilliseconds - now.TotalMilliseconds;
+                            if (frameElapsedMs < targetFrameTimeMs)
                             {
-                                Thread.Sleep((int)(sleepTimeMs - 2)); // 提前 2ms 醒来，用忙等待补齐
-                            }
-                            // 忙等待：直接轮询 Stopwatch，不使用 SpinWait（避免提前 Yield）
-                            while (_clock.Elapsed.TotalMilliseconds - now.TotalMilliseconds < targetFrameTimeMs)
-                            {
-                                // 纯忙等待，保持 CPU 自旋以获取最高计时精度
+                                double sleepTimeMs = targetFrameTimeMs - frameElapsedMs;
+                                // 两级等待策略：
+                                // 1. Thread.Sleep 释放 CPU 时间片（但精度约 15ms，仅用于较长时间）
+                                // 2. Stopwatch 忙等待补齐剩余时间（高精度，不依赖系统计时器分辨率）
+                                if (sleepTimeMs > 4.0)
+                                {
+                                    Thread.Sleep((int)(sleepTimeMs - 2)); // 提前 2ms 醒来，用忙等待补齐
+                                }
+                                // 忙等待：直接轮询 Stopwatch，不使用 SpinWait（避免提前 Yield）
+                                while (_clock.Elapsed.TotalMilliseconds - now.TotalMilliseconds < targetFrameTimeMs)
+                                {
+                                    // 纯忙等待，保持 CPU 自旋以获取最高计时精度
+                                }
                             }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        HandleRenderError(ex);
+                    }
                 }
-                catch (Exception ex)
+            }
+            catch (Exception fatal)
+            {
+                // ★ 最后一道保险：渲染线程是裸线程，任何异常逃逸都会静默终结进程
+                //   （用户看到的就是"点关闭后软件像崩溃一样消失"，无任何提示）。
+                //   这里兜住一切，保证最坏情况只是画面冻结而非进程崩溃。
+                try
                 {
-                    HandleRenderError(ex);
+                    AppLogger.Error(fatal, "[FreeRunCanvas] 渲染线程发生未恢复的致命异常，线程已停止");
                 }
+                catch { }
+            }
+            finally
+            {
+                // 线程退出时复位状态，允许下次 Loaded 重启
+                _running = false;
+                _swapChainReady = false;
             }
         }
 
@@ -355,35 +382,96 @@ namespace SightoHear.Controls
             }
         }
 
+        /// <summary>
+        /// 处理渲染循环中的异常。
+        /// </summary>
+        /// <remarks>
+        /// ★ 关键约束：本方法运行在**裸后台线程**里，任何异常逃逸出去都无法被
+        /// DispatcherUnhandledException 捕获，会直接终结进程（0xc0000409 静默闪退）。
+        /// <para>
+        /// 实测崩溃场景：用户点关闭窗口时，App 的 Closed 回调在 UI 线程调用
+        /// <c>Win2DDeviceManager.Shutdown()</c> 释放了全局共享 CanvasDevice，
+        /// 而渲染线程可能仍在这一帧里绘制；异常进入本方法后，
+        /// <c>device.IsDeviceLost()</c> 对已释放对象调用 → 再抛 ObjectDisposedException
+        /// → 从线程入口逃逸 → 进程闪退。日志堆栈即
+        /// <c>ICanvasDeviceMethods.IsDeviceLost → HandleRenderError → RenderLoop</c>。
+        /// </para>
+        /// 因此这里全程不得再对可能已释放的对象做任何调用，并且整个方法体必须兜住异常。
+        /// </remarks>
         private void HandleRenderError(Exception ex)
         {
-            var device = _device;
-            bool deviceLost = device != null && device.IsDeviceLost();
-
-            if (deviceLost)
+            try
             {
-                // 设备丢失：释放失效交换链，下一轮循环自动重建并重新触发 CreateResources。
-                // 解除面板对失效交换链的引用也须在 UI 线程（XAML 元素访问），且先置空再 Dispose。
-                var old = _swapChain;
-                _swapChain = null;
-                _device = null;
-                _swapChainReady = false;
+                // 正在退出：设备/交换链可能已被主线程释放，不再做任何探测，直接退出循环
+                if (!_running)
+                {
+                    _swapChainReady = false;
+                    _swapChain = null;
+                    return;
+                }
+
+                bool deviceLost = false;
                 try
                 {
-                    DispatcherQueue?.TryEnqueue(() =>
-                    {
-                        _panel.SwapChain = null;
-                        old?.Dispose();
-                    });
+                    // 仅在设备引用仍有效时探测；已释放对象访问会抛 ObjectDisposedException
+                    var device = _device;
+                    deviceLost = device != null && device.IsDeviceLost();
                 }
+                catch (ObjectDisposedException)
+                {
+                    // 设备已被释放（多为退出流程）：按"不可用"处理，交由下一轮重建或退出
+                    deviceLost = true;
+                }
+                catch (Exception probeEx)
+                {
+                    // 探测本身失败（驱动异常等）：保守地走重建流程，不让异常冒出去
+                    AppLogger.Debug($"[FreeRunCanvas] 设备丢失探测失败: {probeEx.Message}");
+                    deviceLost = true;
+                }
+
+                if (deviceLost)
+                {
+                    // 设备丢失/不可用：释放失效交换链，下一轮循环自动重建并重新触发 CreateResources。
+                    // 解除面板对失效交换链的引用也须在 UI 线程（XAML 元素访问），且先置空再 Dispose。
+                    var old = _swapChain;
+                    _swapChain = null;
+                    _device = null;
+                    _swapChainReady = false;
+                    try
+                    {
+                        DispatcherQueue?.TryEnqueue(() =>
+                        {
+                            try
+                            {
+                                _panel.SwapChain = null;
+                                old?.Dispose();
+                            }
+                            catch (Exception uiEx)
+                            {
+                                // 面板可能已随窗口销毁，释放失败无需影响进程
+                                AppLogger.Debug($"[FreeRunCanvas] 释放失效交换链失败: {uiEx.Message}");
+                            }
+                        });
+                    }
+                    catch { }
+                }
+                else if (ex is not ObjectDisposedException &&
+                         Interlocked.CompareExchange(ref _renderErrorLogged, 1, 0) == 0)
+                {
+                    // 仅记录首个非设备丢失异常，避免高频异常刷爆日志
+                    AppLogger.Error(ex, "FreeRunCanvas 渲染循环异常");
+                }
+
+                Thread.Sleep(5);
+            }
+            catch (Exception handlerEx)
+            {
+                // 兜底：本方法绝不能向外抛异常。这里只尽力记录，并通过置位 _swapChainReady
+                // 让下一轮重新走 EnsureSwapChain，避免死循环刷同样的错误。
+                _swapChainReady = false;
+                try { AppLogger.Debug($"[FreeRunCanvas] 异常处理器自身失败（已忽略）: {handlerEx.Message}"); }
                 catch { }
             }
-            else if (ex is not ObjectDisposedException && Interlocked.CompareExchange(ref _renderErrorLogged, 1, 0) == 0)
-            {
-                // 仅记录首个非设备丢失异常，避免高频异常刷爆日志
-                AppLogger.Error(ex, "FreeRunCanvas 渲染循环异常");
-            }
-            Thread.Sleep(5);
         }
 
         private CanvasDevice GetEffectiveDevice() => CustomDevice ?? CanvasDevice.GetSharedDevice();

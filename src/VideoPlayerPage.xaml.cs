@@ -3002,6 +3002,19 @@ namespace SightoHear
         {
             var menu = new MenuFlyout();
 
+            // ★ 设置入口已从右下角控制栏移到这里（与"更多"合并），减少控制栏按钮密度。
+            //   用带图标的 MenuFlyoutItem，保持与原独立按钮一致的 E713（齿轮）辨识度。
+            var settingsItem = new MenuFlyoutItem { Text = "设置" };
+            settingsItem.Icon = new FontIcon
+            {
+                FontFamily = (Microsoft.UI.Xaml.Media.FontFamily)Application.Current.Resources["SegoeFluentIconsFontFamily"],
+                Glyph = "\uE713"
+            };
+            settingsItem.Click += (_, _) => PlayerSettingsButton_Click(this, new RoutedEventArgs());
+            menu.Items.Add(settingsItem);
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+
             var debugItem = new MenuFlyoutItem { Text = "显示调试信息" };
             debugItem.Click += (_, _) => ToggleDebugInfoPanel();
             menu.Items.Add(debugItem);

@@ -573,10 +573,31 @@ namespace SightoHear.Services
             });
         }
 
+        /// <summary>本应用在注册表中的 ProgID（"打开方式" / 默认应用均使用它）。</summary>
+        public const string ProgId = "SightoHear";
+
+        /// <summary>注册表中记录的显示名称。</summary>
+        public const string DisplayName = "SightoHear";
+
+        /// <summary>支持的全部扩展名（供默认应用设置页横幅判断使用）。</summary>
+        public static IEnumerable<string> SupportedExtensions => MediaTypeExtensions.Keys;
+
         /// <summary>
         /// 注册文件关联到当前用户注册表（HKCU）。
-        /// 每次启动时调用，确保 exe 路径变更后仍然有效。
+        /// 每次启动时调用（幂等），首次启动即把本软件注入到右键"打开方式"列表中，
+        /// 同时保证 exe 路径变更后关联仍然有效。
         /// </summary>
+        /// <remarks>
+        /// 让软件出现在资源管理器右键"打开方式"里，需要同时写三处：
+        /// <list type="number">
+        /// <item>HKCU\Software\Classes\Applications\&lt;exe&gt;：FriendlyAppName + SupportedTypes
+        ///       （"打开方式"列表的主要数据源，SupportedTypes 决定该扩展名是否列出本程序）</item>
+        /// <item>HKCU\Software\Classes\&lt;ext&gt;\OpenWithProgids：注册 ProgID（备用枚举路径）</item>
+        /// <item>HKCU\Software\Classes\&lt;ext&gt;\OpenWithList：加入"打开方式"历史列表</item>
+        /// </list>
+        /// 另外写 HKCU\Software\RegisteredApplications + Capabilities，
+        /// 让本软件出现在「Windows 设置 → 默认应用」的可选应用列表里。
+        /// </remarks>
         public static void RegisterFileAssociations()
         {
             try
@@ -589,40 +610,309 @@ namespace SightoHear.Services
                 }
 
                 string command = $"\"{exePath}\" \"%1\"";
+                string exeName = Path.GetFileName(exePath);
 
-                // 注册 ProgID：SightoHear
-                using var progIdKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
-                    @"Software\Classes\SightoHear");
-                progIdKey.SetValue("", "SightoHear 媒体播放器");
-                progIdKey.SetValue("AppUserModelID", "SightoHear");
+                // ① ProgID：SightoHear（shell\open\command + 图标 + 友好名）
+                using (var progIdKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+                    $@"Software\Classes\{ProgId}"))
+                {
+                    progIdKey.SetValue("", "SightoHear 媒体播放器");
+                    progIdKey.SetValue("AppUserModelID", "SightoHear");
+                    using var shellOpenKey = progIdKey.CreateSubKey(@"shell\open");
+                    shellOpenKey.SetValue("FriendlyAppName", DisplayName);
+                    using var commandKey = shellOpenKey.CreateSubKey("command");
+                    commandKey.SetValue("", command);
+                    using var iconKey = progIdKey.CreateSubKey("DefaultIcon");
+                    iconKey.SetValue("", $"\"{exePath}\",0");
+                }
 
-                // 注册打开命令
-                using var shellOpenKey = progIdKey.CreateSubKey(@"shell\open");
-                shellOpenKey.SetValue("FriendlyAppName", "SightoHear");
-                using var commandKey = shellOpenKey.CreateSubKey("command");
-                commandKey.SetValue("", command);
+                // ② Applications\<exe>：右键"打开方式"菜单的直接数据源
+                using (var appKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+                    $@"Software\Classes\Applications\{exeName}"))
+                {
+                    appKey.SetValue("FriendlyAppName", DisplayName);
+                    appKey.SetValue("ApplicationCompany", "AvoidGuest");
+                    using (var appIconKey = appKey.CreateSubKey("DefaultIcon"))
+                        appIconKey.SetValue("", $"\"{exePath}\",0");
+                    using (var appCommandKey = appKey.CreateSubKey(@"shell\open\command"))
+                        appCommandKey.SetValue("", command);
 
-                // 为每种支持的文件扩展名注册 OpenWithProgids（音乐、视频、图片）
+                    // SupportedTypes 决定"打开方式"里本程序对哪些扩展名可见
+                    using var supportedKey = appKey.CreateSubKey("SupportedTypes");
+                    foreach (string ext in MediaTypeExtensions.Keys)
+                        supportedKey.SetValue(ext, string.Empty);
+
+                    // "打开方式"对话框中的程序友好名
+                    using var openWithKey = appKey.CreateSubKey(@"shell\open");
+                    openWithKey.SetValue("FriendlyAppName", DisplayName);
+                }
+
+                // ③ 每个扩展名：OpenWithProgids + OpenWithList
                 foreach (string ext in MediaTypeExtensions.Keys)
                 {
                     using var extKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
                         $@"Software\Classes\{ext}\OpenWithProgids");
-                    extKey.SetValue("SightoHear", Array.Empty<byte>()); // REG_NONE 类型
+                    extKey.SetValue(ProgId, Array.Empty<byte>()); // REG_NONE 类型
+
+                    using var openWithListKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+                        $@"Software\Classes\{ext}\OpenWithList");
+                    openWithListKey.SetValue(exeName, string.Empty);
                 }
 
-                // 通知 Windows 刷新文件关联缓存
+                // ④ 注册到「默认应用」列表（设置 → 默认应用 → 按应用选择默认值）
+                using (var capabilitiesKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+                    @"Software\SightoHear\Capabilities"))
+                {
+                    capabilitiesKey.SetValue("ApplicationName", DisplayName);
+                    capabilitiesKey.SetValue("ApplicationDescription", "统合 Windows 的媒体增强体验");
+                    using var fileAssocKey = capabilitiesKey.CreateSubKey("FileAssociations");
+                    foreach (string ext in MediaTypeExtensions.Keys)
+                        fileAssocKey.SetValue(ext, ProgId);
+                }
+
+                using (var registeredAppsKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+                    @"Software\RegisteredApplications"))
+                {
+                    registeredAppsKey.SetValue(ProgId, @"Software\SightoHear\Capabilities");
+                }
+
+                // 通知 Windows 刷新文件关联缓存（右键"打开方式"立即生效，无需重启资源管理器）
                 NativeMethods.SHChangeNotify(
                     0x08000000, // SHCNE_ASSOCCHANGED
                     0x0000,     // SHCNF_IDLIST
                     IntPtr.Zero,
                     IntPtr.Zero);
 
-                AppLogger.Info("[文件关联] 文件关联注册完成");
+                AppLogger.Info(
+                    $"[文件关联] 已完成\"打开方式\"注入与默认应用注册（{MediaTypeExtensions.Count} 种扩展名，exe={exePath}）");
             }
             catch (Exception ex)
             {
                 AppLogger.Error(ex, "[文件关联] 注册文件关联失败");
             }
+        }
+
+        // ==================== 默认应用（设置页横幅） ====================
+
+        /// <summary>
+        /// 默认应用判定结果，按 Windows「默认应用」页面的三个类别拆分。
+        /// </summary>
+        /// <remarks>
+        /// ★ 为什么按类别判定而不是按扩展名逐项判定：
+        /// <para>
+        /// Windows 10 / 11 的「设置 → 默认应用」页面里，媒体类型只有三个可选类别：
+        /// <b>音乐播放器 / 照片查看器 / 视频播放器</b>（其余是 Web 浏览器、电子邮件、地图）。
+        /// 用户在那一页点是改不掉单个扩展名的，一改就是整类归一。
+        /// </para>
+        /// <para>
+        /// 因此判定必须与这个 UI 对齐：每一类取一个「代表格式」看它归谁，
+        /// 三类都归本应用才算真正的默认应用。这样：
+        /// <list type="bullet">
+        /// <item>用户把三类全改成别的播放器 → 三类都不归本应用 → <b>横幅重新出现</b>（正确）；</item>
+        /// <item>只把视频改成别的 → 音乐/照片仍归本应用，但视频不归 → <b>横幅仍然出现</b>（正确，
+        ///       提醒用户本软件还没拿全）；</item>
+        /// <item>不会因为 .flac/.mkv 等冷门格式恰好归本应用就误判成"已是默认"（旧实现的问题）。</item>
+        /// </list>
+        /// </para>
+        /// </remarks>
+        public sealed class DefaultAppStatus
+        {
+            /// <summary>音乐播放器是否已归本应用。</summary>
+            public bool MusicDefault { get; init; }
+
+            /// <summary>照片查看器是否已归本应用。</summary>
+            public bool PhotoDefault { get; init; }
+
+            /// <summary>视频播放器是否已归本应用。</summary>
+            public bool VideoDefault { get; init; }
+
+            /// <summary>已归本应用的类别数量（0~3）。</summary>
+            public int OwnedCount =>
+                (MusicDefault ? 1 : 0) + (PhotoDefault ? 1 : 0) + (VideoDefault ? 1 : 0);
+
+            /// <summary>类别总数（固定 3）。</summary>
+            public int TotalCount => 3;
+
+            /// <summary>三类是否全部已归本应用（全部满足才算"已是默认应用"）。</summary>
+            public bool IsDefault => OwnedCount == TotalCount;
+        }
+
+        /// <summary>
+        /// 每个类别用于判定的「代表格式」。
+        /// </summary>
+        /// <remarks>
+        /// 选最常见的那一个（.mp3 / .jpg / .mp4），它们在任何 Windows 上都存在且必然有归属，
+        /// 也正是 Windows「默认应用」页面三个类别背后实际读取的扩展名。
+        /// Fallback 仅在代表格式从未被设置（无 UserChoice 键）时启用，
+        /// 避免"用户只设过 .flac 没设过 .mp3"被误判为未设置。
+        /// </remarks>
+        private static readonly (string Name, string[] Primary, string[] Fallback)[] DefaultAppCategories =
+        {
+            ("音乐", new[] { ".mp3" }, new[] { ".flac", ".wav", ".m4a" }),
+            ("照片", new[] { ".jpg" }, new[] { ".jpeg", ".png" }),
+            ("视频", new[] { ".mp4" }, new[] { ".mkv", ".avi", ".mov" })
+        };
+
+        /// <summary>
+        /// 读取三个类别的默认应用归属，判断本应用是否已成为默认应用。
+        /// 只读注册表，不写任何东西；UI 线程可安全调用（耗时 &lt; 10ms）。
+        /// </summary>
+        /// <remarks>
+        /// Windows 从 Win8 起用 UserChoice + 哈希保护默认应用，程序无法（也不应）绕过哈希伪造成"默认"，
+        /// 只能读取来判断当前状态，真正的设置动作交给系统「默认应用」页面由用户确认。
+        /// <para>
+        /// ★ UserChoice 的 ProgId 有两种合法形态，必须都能识别，否则会误判为"未设置"：
+        /// 经「默认应用」页面设置 → <c>SightoHear</c>；
+        /// 经右键「打开方式」勾选"始终使用" → <c>Applications\SightoHear.exe</c>。
+        /// </para>
+        /// </remarks>
+        public static DefaultAppStatus GetDefaultAppStatus()
+        {
+            return new DefaultAppStatus
+            {
+                MusicDefault = IsCategoryOwned(DefaultAppCategories[0]),
+                PhotoDefault = IsCategoryOwned(DefaultAppCategories[1]),
+                VideoDefault = IsCategoryOwned(DefaultAppCategories[2])
+            };
+        }
+
+        /// <summary>
+        /// 判断某个类别的默认应用是否为本应用：先看代表格式，代表格式从未设置时再看备选格式。
+        /// </summary>
+        private static bool IsCategoryOwned((string Name, string[] Primary, string[] Fallback) category)
+        {
+            bool primaryHadValue = false;
+
+            foreach (string ext in category.Primary)
+            {
+                string? progId = ReadUserChoiceProgId(ext, out bool hadValue);
+                primaryHadValue |= hadValue;
+                if (IsOwnedProgId(progId))
+                    return true;
+            }
+
+            // 代表格式已被设置为其他应用 → 这一类明确不归本应用，不再看备选格式
+            if (primaryHadValue)
+                return false;
+
+            // 代表格式从未被设置过（全新系统常见）→ 用备选格式兜底判断
+            foreach (string ext in category.Fallback)
+            {
+                string? progId = ReadUserChoiceProgId(ext, out _);
+                if (IsOwnedProgId(progId))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 读取指定扩展名 UserChoice 下的 ProgId。
+        /// </summary>
+        /// <param name="extension">扩展名（含点，如 ".mp3"）。</param>
+        /// <param name="hadValue">该扩展名是否已被设置过默认应用（UserChoice 键存在且有 ProgId）。</param>
+        private static string? ReadUserChoiceProgId(string extension, out bool hadValue)
+        {
+            hadValue = false;
+            try
+            {
+                using var userChoice = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                    $@"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{extension}\UserChoice");
+                if (userChoice?.GetValue("ProgId") is not string progId || string.IsNullOrWhiteSpace(progId))
+                    return null;
+
+                hadValue = true;
+                return progId;
+            }
+            catch (Exception ex)
+            {
+                // UserChoice 受 ACL 保护，极端情况下可能读取失败；按"未设置"处理并记录
+                AppLogger.Warning($"[默认应用] 读取 {extension} 的 UserChoice 失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 判断一个 UserChoice ProgId 是否指向本应用（兼容 "SightoHear" 与 "Applications\SightoHear.exe" 两种形态）。
+        /// </summary>
+        private static bool IsOwnedProgId(string? progId)
+        {
+            if (string.IsNullOrWhiteSpace(progId))
+                return false;
+
+            if (string.Equals(progId, ProgId, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // 右键"打开方式"路径写入的是 Applications\<exe> 形式
+            string exeName = Path.GetFileName(Environment.ProcessPath ?? "SightoHear.exe");
+            string appForm = $@"Applications\{exeName}";
+            return string.Equals(progId, appForm, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(progId, $@"Applications\{ProgId}.exe", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// 打开系统「设置 → 默认应用」页面。
+        /// </summary>
+        /// <returns>是否成功唤起系统设置页面。</returns>
+        /// <remarks>
+        /// ★ 实测结论（2026-11-15，Windows 11 24H2）：
+        /// <list type="bullet">
+        /// <item><c>?registeredAppUser=</c> / <c>?registeredAUMID=</c> 两个深链参数均被系统忽略，
+        ///       只会落到默认应用总览页 —— 不再尝试"直达应用条目"。</item>
+        /// <item><c>IAssocHandler::MakeDefault</c> 返回 S_OK 但**不写 UserChoice**
+        ///       （方法返回成功、注册表无任何变化），无法用它实现真正的一键设置默认应用。</item>
+        /// </list>
+        /// 结论：Windows 强制「默认应用必须由用户在系统设置里确认」，应用侧只能把用户送到正确页面。
+        /// 这也是 Chrome / 各类播放器的通行做法。
+        /// </remarks>
+        public static async Task<bool> OpenDefaultAppsSettingsAsync()
+        {
+            // 依次尝试：默认应用总览 → 应用功能页（系统异常时兜底）
+            string[] uris =
+            {
+                "ms-settings:defaultapps",
+                "ms-settings:appsfeatures"
+            };
+
+            foreach (string uri in uris)
+            {
+                try
+                {
+                    if (await Windows.System.Launcher.LaunchUriAsync(new Uri(uri)))
+                    {
+                        AppLogger.Info($"[默认应用] 已唤起系统默认应用设置: {uri}");
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Warning($"[默认应用] 唤起 {uri} 失败: {ex.Message}");
+                }
+            }
+
+            AppLogger.Warning("[默认应用] 无法唤起系统默认应用设置页面");
+            return false;
+        }
+
+        /// <summary>
+        /// 「设为默认」按钮的完整流程：先补写注册表（保证系统认得本应用），
+        /// 再打开系统默认应用页面由用户确认。
+        /// </summary>
+        /// <returns>是否成功唤起系统设置页面。</returns>
+        public static async Task<bool> SetAsDefaultAsync()
+        {
+            try
+            {
+                // 幂等重注册：确保 Capabilities / RegisteredApplications 一定存在，
+                // 否则「默认应用」页面里根本找不到本应用，按钮点了也无处可点。
+                RegisterFileAssociations();
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warning($"[默认应用] 重注册文件关联失败（继续打开系统设置）: {ex.Message}");
+            }
+
+            return await OpenDefaultAppsSettingsAsync();
         }
 
         /// <summary>

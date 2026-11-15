@@ -124,7 +124,9 @@
 
                     <!-- 日志文件管理 -->
                     <controls:SettingsCard
+                        x:Name="LogFolderCard"
                         Header="日志文件管理"
+                        Description="打开日志文件夹，或立即按上面的保留天数清理旧日志"
                         ContentAlignment="Left"
                         HorizontalContentAlignment="Left">
                         <controls:SettingsCard.HeaderIcon>
@@ -137,6 +139,14 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8B7;" FontSize="12"/>
                                     <TextBlock Text="打开日志文件夹"/>
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                x:Name="CleanLogsNowButton"
+                                Click="CleanLogsNowButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE74D;" FontSize="12"/>
+                                    <TextBlock Text="立即清理旧日志"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>

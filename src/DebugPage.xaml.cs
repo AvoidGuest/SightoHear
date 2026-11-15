@@ -37,6 +37,8 @@ namespace SightoHear
             ApplyWin2DPerfHudSettings();
             EnsureGpuStatusTimer();
             UpdateGpuMonitorUi();
+            // 让「日志文件管理」卡片一进来就显示当前占用，方便判断是否该清理
+            UpdateLogFolderCardDescription();
             // 实时日志统计默认文案（开发者模式打开前先占位）
             if (LogStatsText != null && string.IsNullOrEmpty(LogStatsText.Text))
                 LogStatsText.Text = "统计加载中...";
@@ -172,9 +174,15 @@ namespace SightoHear
             Helpers.AppLogger.IsEnabled = LogEnabledToggle.IsOn;
             Helpers.AppLogger.CurrentLevel = (Helpers.LogLevel)LogLevelComboBox.SelectedIndex;
             Helpers.AppLogger.ProtectSensitiveInfo = ProtectSensitiveToggle.IsOn;
-            if (AutoCleanToggle.IsOn)
-                Helpers.AppLogger.CleanupOldLogs((int)CleanDaysNumberBox.Value);
             Helpers.AppLogger.IsDevMode = DevModeToggle.IsOn;
+
+            // 把清理策略同步给 AppLogger，让后台每 6 小时的定时清理按新设置执行
+            // （旧实现只在用户改设置的这一刻清一次，之后再也不管）
+            Helpers.AppLogger.AutoCleanEnabled = AutoCleanToggle.IsOn;
+            Helpers.AppLogger.LogRetentionDays = (int)CleanDaysNumberBox.Value;
+
+            if (AutoCleanToggle.IsOn)
+                Helpers.AppLogger.CleanupOldLogsInBackground();
         }
 
         private void OpenLogFolderButton_Click(object sender, RoutedEventArgs e)
@@ -191,6 +199,86 @@ namespace SightoHear
                 });
             }
             catch { }
+        }
+
+        /// <summary>
+        /// 立即清理旧日志。返回实际删除数量并刷新卡片描述，
+        /// 让用户能直观确认"保留 N 天"确实生效了（旧实现无任何反馈，无法判断是否真的删了）。
+        /// </summary>
+        private void CleanLogsNowButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                CleanLogsNowButton.IsEnabled = false;
+
+                int days = (int)CleanDaysNumberBox.Value;
+                int deleted = Helpers.AppLogger.CleanupOldLogs(days);
+
+                AppLogger.Info($"用户手动清理旧日志：保留 {days} 天，删除 {deleted} 个文件");
+                UpdateLogFolderCardDescription(deleted);
+
+                // 清理结果通过卡片描述呈现，不用弹窗打断
+                if (deleted == 0)
+                {
+                    CleanLogsNowButton.Content = BuildButtonContent("E74D", "无需清理");
+                    var timer = DispatcherQueue.CreateTimer();
+                    timer.Interval = TimeSpan.FromSeconds(2);
+                    timer.IsRepeating = false;
+                    timer.Tick += (_, _) =>
+                    {
+                        CleanLogsNowButton.Content = BuildButtonContent("E74D", "立即清理旧日志");
+                        timer.Stop();
+                    };
+                    timer.Start();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error(ex, "[调试页] 手动清理旧日志失败");
+            }
+            finally
+            {
+                CleanLogsNowButton.IsEnabled = true;
+            }
+        }
+
+        /// <summary>构造带图标按钮内容（避免在代码里直接拼接 XAML）。</summary>
+        private static StackPanel BuildButtonContent(string glyph, string text)
+        {
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            panel.Children.Add(new FontIcon
+            {
+                FontFamily = (Microsoft.UI.Xaml.Media.FontFamily)Application.Current.Resources["SegoeFluentIconsFontFamily"],
+                Glyph = char.ConvertFromUtf32(Convert.ToInt32(glyph, 16)),
+                FontSize = 12
+            });
+            panel.Children.Add(new TextBlock { Text = text });
+            return panel;
+        }
+
+        /// <summary>刷新「日志文件管理」卡片描述，展示当前日志目录占用情况。</summary>
+        private void UpdateLogFolderCardDescription(int? justDeleted = null)
+        {
+            try
+            {
+                if (LogFolderCard == null) return;
+
+                var (count, bytes, expired) = Helpers.AppLogger.GetLogFolderStats();
+                double mb = bytes / 1024.0 / 1024.0;
+                string sizeText = mb >= 1 ? $"{mb:F1} MB" : $"{bytes / 1024.0:F0} KB";
+
+                string desc = $"当前 {count} 个日志文件，共 {sizeText}；保留 {Helpers.AppLogger.LogRetentionDays} 天";
+                if (expired > 0)
+                    desc += $"，有 {expired} 个待清理";
+                if (justDeleted.HasValue && justDeleted.Value > 0)
+                    desc += $"（刚刚删除了 {justDeleted.Value} 个）";
+
+                LogFolderCard.Description = desc;
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Debug($"[调试页] 刷新日志统计失败: {ex.Message}");
+            }
         }
 
         /// <summary>

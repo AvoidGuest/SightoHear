@@ -263,6 +263,15 @@ namespace SightoHear
                 _diagnosticsTimer?.Stop();
                 CompositionTarget.Rendering -= OnEqualizerFrame;
                 CompositionTarget.Rendering -= OnQueueEqualizerFrame;
+
+                // ★ 关键：先卸载内容页，触发各页面 Unloaded → FreeRunCanvas.StopRenderLoop，
+                //   让渲染线程在 App 的 Closed 回调释放全局 CanvasDevice（Win2DDeviceManager.Shutdown）
+                //   之前就停下来。
+                //   否则会出现实测崩溃：主线程已 Dispose 共享设备，后台渲染线程仍在绘制 →
+                //   ObjectDisposedException 从裸线程逃逸 → 进程静默闪退（0xc0000409），
+                //   表现为"点关闭后软件像崩溃一样消失"。
+                try { ShutdownRenderSurfaces(); }
+                catch (Exception ex) { Helpers.AppLogger.Warning($"[MainWindow] 退出时停止渲染线程失败: {ex.Message}"); }
             };
 
             UpdateBackButtonState(false);
@@ -560,6 +569,65 @@ namespace SightoHear
             //   若放任累积，多次浏览后 GC 频繁，打开 Win2D 播放器时会引发帧抖动。
             //   在导航完成、页面加载峰值过后用低优先级执行 Trim + 非阻塞 GC，把余波清干净。
             SchedulePageCleanup();
+        }
+
+        /// <summary>
+        /// 退出前停止所有 Win2D 渲染表面（FreeRunCanvas 的独立渲染线程）。
+        /// </summary>
+        /// <remarks>
+        /// ★ 为什么必须在 App 的 Closed 回调之前做：
+        /// 应用退出时 <c>Win2DDeviceManager.Shutdown()</c> 会 Dispose 全局共享 CanvasDevice，
+        /// 而 FreeRunCanvas 的渲染线程是**独立后台线程**，不受 UI 线程生命周期约束。
+        /// 若设备先被释放、渲染线程还在画，异常会从裸线程逃逸直接终结进程
+        /// （0xc0000409 静默闪退，用户感知就是"点关闭后软件崩溃一样消失"）。
+        /// <para>
+        /// 这里遍历可视化树主动调用 <see cref="Controls.FreeRunCanvas.RemoveFromVisualTree"/>，
+        /// 它会 Join 渲染线程（2 秒超时）后才返回，从而保证释放设备时已无渲染线程在用。
+        /// 即便有遗漏，FreeRunCanvas 内部也已对已释放设备做了防护。
+        /// </para>
+        /// </remarks>
+        private void ShutdownRenderSurfaces()
+        {
+            int stopped = 0;
+
+            void Walk(DependencyObject? node)
+            {
+                if (node == null || stopped >= 16)
+                    return;
+
+                if (node is Controls.FreeRunCanvas canvas)
+                {
+                    try
+                    {
+                        canvas.RemoveFromVisualTree();
+                        stopped++;
+                    }
+                    catch (Exception ex)
+                    {
+                        Helpers.AppLogger.Debug($"[MainWindow] 停止 FreeRunCanvas 失败: {ex.Message}");
+                    }
+                    return;
+                }
+
+                int count = VisualTreeHelper.GetChildrenCount(node);
+                for (int i = 0; i < count; i++)
+                    Walk(VisualTreeHelper.GetChild(node, i));
+            }
+
+            try
+            {
+                Walk(Content as DependencyObject);
+                // 播放器覆盖层 / 迷你播放器可能不在 Content 的常规子树上，单独兜一遍
+                Walk(PlayerOverlay);
+                Walk(MiniPlayer);
+            }
+            catch (Exception ex)
+            {
+                Helpers.AppLogger.Debug($"[MainWindow] 遍历可视化树停止渲染线程时出错: {ex.Message}");
+            }
+
+            if (stopped > 0)
+                Helpers.AppLogger.Info($"[MainWindow] 退出前已停止 {stopped} 个 Win2D 渲染表面");
         }
 
         /// <summary>

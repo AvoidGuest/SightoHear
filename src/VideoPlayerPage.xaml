@@ -50,6 +50,18 @@
             <!-- 与音乐播放器一致的按钮样式（搬自 MusicPlayerPage） -->
             <SolidColorBrush x:Key="PlayerControlIconBrush" Color="#FFFFFFFF"/>
 
+            <!--
+              播放器控制栏幽灵按钮。
+
+              ★ 必须自带 ControlTemplate，不能用默认模板 + 只设 Setter：
+                默认 Button 模板在 PointerOver / Pressed 状态下会把 Foreground 换成
+                主题资源（浅色主题下是深色）。播放器的背景是黑色视频画面，
+                于是鼠标移上去图标就"变黑→看不见"；而 ToolTip 的弹出/关闭会让
+                PointerOver 状态反复进出，视觉上就是"图标反复反色闪烁"。
+
+                这里把各状态的前景硬编码为白色、背景为半透明白，
+                与音乐播放器观感一致，且在任何系统主题下都稳定不闪。
+            -->
             <Style x:Key="PlayerGhostButtonStyle" TargetType="Button">
                 <Setter Property="Width" Value="42"/>
                 <Setter Property="Height" Value="42"/>
@@ -59,6 +71,51 @@
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Foreground" Value="{StaticResource PlayerControlIconBrush}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid
+                                x:Name="RootGrid"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Padding="{TemplateBinding Padding}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="#1FFFFFFF"/>
+                                                <!-- 前景锁定为白色，杜绝浅色主题下的"变黑" -->
+                                                <Setter Target="ContentPresenter.Foreground" Value="#FFFFFFFF"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="RootGrid.Background" Value="#33FFFFFF"/>
+                                                <Setter Target="ContentPresenter.Foreground" Value="#FFFFFFFF"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="ContentPresenter.Foreground" Value="#66FFFFFF"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter
+                                    x:Name="ContentPresenter"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    AutomationProperties.AccessibilityView="Raw"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style x:Key="PlayerPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PlayerGhostButtonStyle}">
@@ -596,23 +653,13 @@
                     <Button
                         x:Name="QueueButton"
                         Style="{StaticResource PlayerGhostButtonStyle}"
+                        AutomationProperties.Name="播放队列"
                         ToolTipService.ToolTip="播放队列">
                         <FontIcon
                             FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
                             FontSize="15"
-                            Glyph="&#xE8FD;" />
-                    </Button>
-                    <Button
-                        x:Name="PlayerSettingsButton"
-                        Style="{StaticResource PlayerGhostButtonStyle}"
-                        Click="PlayerSettingsButton_Click"
-                        AutomationProperties.Name="设置"
-                        ToolTipService.ToolTip="设置">
-                        <FontIcon
-                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
-                            FontSize="15"
                             Foreground="White"
-                            Glyph="&#xE713;" />
+                            Glyph="&#xE8FD;" />
                     </Button>
                     <Button
                         x:Name="FullScreenButton"
