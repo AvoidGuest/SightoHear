@@ -12,7 +12,9 @@ namespace SightoHear
         {
             InitializeComponent();
             SettingsContentFrame.Navigated += SettingsContentFrame_Navigated;
-            SettingsContentFrame.Navigate(typeof(SettingsHomePage));
+            // 设置首页直接出现，不做任何进入动画（与主窗口其他页面一致）；
+            // 设置页内部的子页面导航仍使用 FromRight 滑入，见 SettingsHomePage 各 Click 处理器。
+            SettingsContentFrame.Navigate(typeof(SettingsHomePage), null, new SuppressNavigationTransitionInfo());
             AppLogger.Info("设置页打开");
         }
 
@@ -29,8 +31,10 @@ namespace SightoHear
                 typeof(Microsoft.UI.Xaml.Controls.Page).IsAssignableFrom(pageType))
             {
                 AppLogger.Info($"设置页直达子页面: {pageType.Name}");
-                // 延迟到布局完成后导航，避免与构造函数中的 SettingsHomePage 导航交错
-                DispatcherQueue.TryEnqueue(() => SettingsContentFrame.Navigate(pageType));
+                // 延迟到布局完成后导航，避免与构造函数中的 SettingsHomePage 导航交错。
+                // 直达子页面属于"设置页内部导航"，保留 FromRight 滑入（与手动点击分类一致）。
+                DispatcherQueue.TryEnqueue(() => SettingsContentFrame.Navigate(pageType, null,
+                    new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight }));
             }
         }
 

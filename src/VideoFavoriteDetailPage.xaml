@@ -180,24 +180,28 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" ColumnSpacing="24">
+        <!-- ==================== 宽窗口布局（≥900px） ==================== -->
+        <Grid
+            x:Name="WideHeaderLayout"
+            Grid.Row="0"
+            ColumnSpacing="24"
+            Visibility="Visible">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="176" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <Border
-                x:Name="CoverBorder"
                 Width="176" Height="176"
                 Background="{ThemeResource ControlFillColorSecondaryBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1" CornerRadius="8">
                 <Grid>
-                    <FontIcon x:Name="CoverPlaceholderIcon" FontFamily="{StaticResource SegoeFluentIconsFontFamily}" FontSize="42"
+                    <FontIcon x:Name="WideCoverPlaceholderIcon" FontFamily="{StaticResource SegoeFluentIconsFontFamily}" FontSize="42"
                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                               Glyph="&#xE728;" />
-                    <Image x:Name="CoverImage"
+                    <Image x:Name="WideCoverImage"
                            Stretch="UniformToFill"
                            Visibility="Collapsed" />
                 </Grid>
@@ -218,22 +222,22 @@
                 <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right"
                             VerticalAlignment="Top" Orientation="Horizontal" Spacing="12"
                             Margin="0,11,0,0">
-                    <TextBlock x:Name="CreatedTimeText" VerticalAlignment="Center"
+                    <TextBlock x:Name="WideCreatedTimeText" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock x:Name="VideoCountText" VerticalAlignment="Center"
+                    <TextBlock x:Name="WideVideoCountText" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>
 
-                <TextBlock x:Name="FavoriteNameText" Grid.Row="0" Grid.Column="0"
+                <TextBlock x:Name="WideFavoriteNameText" Grid.Row="0" Grid.Column="0"
                            FontSize="34" FontWeight="SemiBold" MaxLines="1"
                            TextTrimming="CharacterEllipsis" Margin="-4,0,0,0" />
 
-                <TextBlock x:Name="FavoriteDescriptionText" Grid.Row="1" Grid.ColumnSpan="2"
+                <TextBlock x:Name="WideFavoriteDescriptionText" Grid.Row="1" Grid.ColumnSpan="2"
                            MaxLines="4" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Margin="-1,4,0,0" />
 
-                <Button x:Name="PlayButton" Grid.Row="3" Grid.Column="0"
+                <Button x:Name="WidePlayButton" Grid.Row="3" Grid.Column="0"
                         Width="132" Height="38" Padding="20,0"
                         Click="PlayButton_Click" CornerRadius="19">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -244,14 +248,14 @@
 
                 <StackPanel Grid.Row="3" Grid.Column="1" HorizontalAlignment="Right"
                             Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="EditButton" Height="32" Padding="10,0"
+                    <Button x:Name="WideEditButton" Height="32" Padding="10,0"
                             Click="EditButton_Click">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon FontSize="12" Glyph="&#xE70F;" />
                             <TextBlock Text="编辑" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="AddSongsButton" Height="32" Padding="10,0"
+                    <Button x:Name="WideAddSongsButton" Height="32" Padding="10,0"
                             Click="AddSongsButton_Click">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon FontSize="12" Glyph="&#xE710;" />
@@ -259,7 +263,7 @@
                         </StackPanel>
                     </Button>
                     <ToggleButton
-                        x:Name="MultiSelectToggle"
+                        x:Name="WideMultiSelectToggle"
                         Height="32"
                         Padding="8,0"
                         Click="MultiSelectToggle_Click">
@@ -268,11 +272,218 @@
                             <TextBlock Text="多选" />
                         </StackPanel>
                     </ToggleButton>
-                    <AutoSuggestBox x:Name="VideoSearchBox" Width="320" Height="32"
+                    <AutoSuggestBox x:Name="WideVideoSearchBox" Width="320" Height="32"
                                     MinWidth="260" PlaceholderText="搜索视频" QueryIcon="Find"
                                     TextChanged="VideoSearchBox_TextChanged" />
                 </StackPanel>
             </Grid>
+        </Grid>
+
+        <!-- ==================== 中等宽度窗口布局（600-900px） ==================== -->
+        <Grid
+            x:Name="MediumHeaderLayout"
+            Grid.Row="0"
+            RowSpacing="16"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    Width="140" Height="140"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8">
+                    <Grid>
+                        <FontIcon x:Name="MediumCoverPlaceholderIcon" FontFamily="{StaticResource SegoeFluentIconsFontFamily}" FontSize="36"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                  Glyph="&#xE728;" />
+                        <Image x:Name="MediumCoverImage"
+                               Stretch="UniformToFill"
+                               Visibility="Collapsed" />
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Column="1" VerticalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock x:Name="MediumFavoriteNameText" Grid.Row="0" Grid.Column="0"
+                               FontSize="28" FontWeight="SemiBold" MaxLines="2"
+                               TextTrimming="CharacterEllipsis" />
+                    <!-- ★ 创建时间与视频数独立成行右对齐，避免和标题挤在同一行 -->
+                    <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right"
+                                VerticalAlignment="Top" Spacing="4" Margin="0,4,0,0">
+                        <TextBlock x:Name="MediumCreatedTimeText" FontSize="12" HorizontalAlignment="Right"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="MediumVideoCountText" FontSize="12" HorizontalAlignment="Right"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <TextBlock x:Name="MediumFavoriteDescriptionText" Grid.Row="1" Grid.ColumnSpan="2"
+                               MaxLines="3" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Margin="0,4,0,0" />
+
+                    <StackPanel
+                        Grid.Row="3"
+                        Grid.ColumnSpan="2"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        HorizontalAlignment="Left"
+                        Margin="0,8,0,0">
+                        <Button x:Name="MediumPlayButton"
+                                Width="132" Height="34" Padding="20,0"
+                                Click="PlayButton_Click" CornerRadius="17">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="12" Glyph="&#xE768;" />
+                                <TextBlock Text="播放全部" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="MediumEditButton" Height="32" Padding="10,0"
+                                Click="EditButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontSize="12" Glyph="&#xE70F;" />
+                                <TextBlock Text="编辑" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="MediumAddSongsButton" Height="32" Padding="10,0"
+                                Click="AddSongsButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontSize="12" Glyph="&#xE710;" />
+                                <TextBlock Text="添加" />
+                            </StackPanel>
+                        </Button>
+                        <ToggleButton
+                            x:Name="MediumMultiSelectToggle"
+                            Height="32"
+                            Padding="8,0"
+                            Click="MultiSelectToggle_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon FontSize="12" Glyph="&#xEA98;" />
+                                <TextBlock Text="多选" />
+                            </StackPanel>
+                        </ToggleButton>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <AutoSuggestBox x:Name="MediumVideoSearchBox"
+                            Grid.Row="1" Height="32"
+                            PlaceholderText="搜索视频" QueryIcon="Find"
+                            TextChanged="VideoSearchBox_TextChanged" />
+        </Grid>
+
+        <!-- ==================== 窄窗口布局（<600px） ==================== -->
+        <Grid
+            x:Name="NarrowHeaderLayout"
+            Grid.Row="0"
+            RowSpacing="12"
+            Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    Width="96" Height="96"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8">
+                    <Grid>
+                        <FontIcon x:Name="NarrowCoverPlaceholderIcon" FontFamily="{StaticResource SegoeFluentIconsFontFamily}" FontSize="28"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                  Glyph="&#xE728;" />
+                        <Image x:Name="NarrowCoverImage"
+                               Stretch="UniformToFill"
+                               Visibility="Collapsed" />
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Column="1" VerticalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock x:Name="NarrowFavoriteNameText" Grid.Row="0"
+                               FontSize="22" FontWeight="SemiBold" MaxLines="2"
+                               TextTrimming="CharacterEllipsis" />
+                    <!-- ★ 窄窗口下统计信息改为上下两行，避免横向空间不足互相挤压 -->
+                    <StackPanel Grid.Row="1" Spacing="2" Margin="0,2,0,0">
+                        <TextBlock x:Name="NarrowVideoCountText" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="NarrowCreatedTimeText" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <TextBlock x:Name="NarrowFavoriteDescriptionText" Grid.Row="2"
+                               MaxLines="2" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Margin="0,4,0,0" />
+
+                    <StackPanel
+                        Grid.Row="3"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        HorizontalAlignment="Left"
+                        Margin="0,8,0,0">
+                        <Button x:Name="NarrowPlayButton"
+                                Width="132" Height="34" Padding="20,0"
+                                Click="PlayButton_Click" CornerRadius="17">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="12" Glyph="&#xE768;" />
+                                <TextBlock Text="播放全部" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="NarrowEditButton" Height="32" Padding="8,0"
+                                Click="EditButton_Click">
+                            <FontIcon FontSize="12" Glyph="&#xE70F;" />
+                        </Button>
+                        <Button x:Name="NarrowAddSongsButton" Height="32" Padding="8,0"
+                                Click="AddSongsButton_Click">
+                            <FontIcon FontSize="12" Glyph="&#xE710;" />
+                        </Button>
+                        <ToggleButton
+                            x:Name="NarrowMultiSelectToggle"
+                            Height="32"
+                            Padding="8,0"
+                            Click="MultiSelectToggle_Click">
+                            <FontIcon FontSize="12" Glyph="&#xEA98;" />
+                        </ToggleButton>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <AutoSuggestBox x:Name="NarrowVideoSearchBox"
+                            Grid.Row="1" Height="32"
+                            PlaceholderText="搜索视频" QueryIcon="Find"
+                            TextChanged="VideoSearchBox_TextChanged" />
         </Grid>
 
         <!-- 底部区域：内容列表 -->

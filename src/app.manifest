@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <!-- 版本号与 SightoHear.csproj 的 <Version> 保持同步（当前正式版 0.4.0，四段 0.4.0.0） -->
-  <assemblyIdentity version="0.4.1.0" name="SightoHear.app"/>
+  <assemblyIdentity version="0.4.2.0" name="SightoHear.app"/>
 
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>

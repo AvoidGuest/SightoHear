@@ -54,82 +54,7 @@
                 TextWrapping="Wrap"
                 Foreground="{ThemeResource SystemFillColorCautionBrush}" />
 
-            <!-- 播放行为 -->
-            <TextBlock
-                Text="播放行为"
-                Margin="4,0,0,0"
-                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
-
-            <controls:SettingsCard Header="记忆全部视频播放进度" Description="开启后每个视频都会记住看到哪里，下次打开接着播；看到结尾的视频会从头开始">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE823;"/>
-                </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch
-                    x:Name="RememberPositionToggle"
-                    MinWidth="0"
-                    OnContent=""
-                    OffContent=""
-                    IsOn="False"
-                    Toggled="RememberPositionToggle_Toggled" />
-            </controls:SettingsCard>
-
-            <controls:SettingsCard Header="自动播放下一个" Description="一个视频播完后自动接着播下一个；关闭则停留在当前视频">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8EE;"/>
-                </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch
-                    x:Name="AutoPlayNextToggle"
-                    MinWidth="0"
-                    OnContent=""
-                    OffContent=""
-                    IsOn="False"
-                    Toggled="AutoPlayNextToggle_Toggled" />
-            </controls:SettingsCard>
-
-            <controls:SettingsCard Header="自动播放" Description="打开视频后自动开始播放；关闭后进入播放器时会先暂停">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE768;"/>
-                </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch
-                    x:Name="AutoPlayToggle"
-                    MinWidth="0"
-                    OnContent=""
-                    OffContent=""
-                    IsOn="True"
-                    Toggled="AutoPlayToggle_Toggled" />
-            </controls:SettingsCard>
-
-            <controls:SettingsCard Header="后台播放" Description="最小化窗口后视频继续播放；关闭后最小化会暂停，回到窗口自动恢复">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE921;"/>
-                </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch
-                    x:Name="BackgroundPlayToggle"
-                    MinWidth="0"
-                    OnContent=""
-                    OffContent=""
-                    IsOn="True"
-                    Toggled="BackgroundPlayToggle_Toggled" />
-            </controls:SettingsCard>
-
-            <!-- 快捷键 -->
-            <TextBlock
-                Text="快捷键"
-                Margin="4,0,0,0"
-                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
-
-            <controls:SettingsCard
-                x:Name="ShortcutButton"
-                Header="快捷键"
-                Description="自定义播放器的按键操作，支持单键或组合键"
-                IsClickEnabled="True"
-                Click="ShortcutButton_Click">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE765;"/>
-                </controls:SettingsCard.HeaderIcon>
-            </controls:SettingsCard>
-
-            <!-- 解码设置 -->
+            <!-- 解码设置（紧随播放模式：先选内核，再定该内核下的解码方式） -->
             <TextBlock
                 Text="解码设置"
                 Margin="4,0,0,0"
@@ -228,6 +153,81 @@
                         Title="">
                     </TeachingTip>
                 </Grid>
+            </controls:SettingsCard>
+
+            <!-- 播放行为 -->
+            <TextBlock
+                Text="播放行为"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard Header="记忆全部视频播放进度" Description="开启后每个视频都会记住看到哪里，下次打开接着播；看到结尾的视频会从头开始">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE823;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="RememberPositionToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="False"
+                    Toggled="RememberPositionToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="自动播放下一个" Description="一个视频播完后自动接着播下一个；关闭则停留在当前视频">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE8EE;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="AutoPlayNextToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="False"
+                    Toggled="AutoPlayNextToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="自动播放" Description="打开视频后自动开始播放；关闭后进入播放器时会先暂停">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE768;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="AutoPlayToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="True"
+                    Toggled="AutoPlayToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="后台播放" Description="最小化窗口后视频继续播放；关闭后最小化会暂停，回到窗口自动恢复">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE921;"/>
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    x:Name="BackgroundPlayToggle"
+                    MinWidth="0"
+                    OnContent=""
+                    OffContent=""
+                    IsOn="True"
+                    Toggled="BackgroundPlayToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <!-- 快捷键 -->
+            <TextBlock
+                Text="快捷键"
+                Margin="4,0,0,0"
+                Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" />
+
+            <controls:SettingsCard
+                x:Name="ShortcutButton"
+                Header="快捷键"
+                Description="自定义播放器的按键操作，支持单键或组合键"
+                IsClickEnabled="True"
+                Click="ShortcutButton_Click">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE765;"/>
+                </controls:SettingsCard.HeaderIcon>
             </controls:SettingsCard>
         </StackPanel>
     </ScrollViewer>

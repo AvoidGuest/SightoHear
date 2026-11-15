@@ -40,6 +40,9 @@ namespace SightoHear
         private List<MediaItem> _playlist = new();
         private int _currentIndex = -1;
         private DispatcherTimer? _positionTimer;
+
+        /// <summary>进度条平滑驱动：定时器只提供真实位置，逐帧外推出连续进度（详见 SmoothProgressDriver）。</summary>
+        private Helpers.SmoothProgressDriver? _smoothProgress;
         private DispatcherTimer? _introTimer;
         private DispatcherTimer? _delayedHideTimer;
         private double _lastPointerY = double.NaN;
@@ -281,6 +284,15 @@ namespace SightoHear
             _positionTimer.Tick += PositionTimer_Tick;
             _positionTimer.Start();
 
+            // 进度条平滑：定时器（250ms）只给真实位置，CompositionTarget 每帧外推出连续值
+            _smoothProgress = new Helpers.SmoothProgressDriver(value =>
+            {
+                ProgressSlider.Value = value;
+                if (PipControls.Visibility == Visibility.Visible)
+                    PipProgressSlider.Value = value;
+            });
+            _smoothProgress.Start();
+
             // 后台播放：订阅窗口状态变化（检测最小化，设置关闭时最小化暂停、还原恢复）
             SubscribeWindowStateChanged();
 
@@ -335,6 +347,11 @@ namespace SightoHear
             _introTimer?.Stop();
             _delayedHideTimer?.Stop();
             _cursorIdleTimer?.Stop();
+            // 停掉逐帧进度回调，避免页面卸载后 SmoothProgressDriver 仍被 CompositionTarget 持有
+            _smoothProgress?.Stop();
+            _smoothProgress = null;
+            // 退出播放器：移除任务栏进度条
+            Services.TaskbarProgressService.Clear();
 
             // 退出播放器时若处于画中画（CompactOverlay）模式，恢复默认窗口（避免残留置顶小窗）
             ExitPictureInPictureIfActive();
@@ -1047,7 +1064,10 @@ namespace SightoHear
                 if (duration > 0)
                 {
                     ProgressSlider.Maximum = duration;
-                    ProgressSlider.Value = position;
+                    _smoothProgress?.SetPosition(position, duration, GetIsPlaying() ? 1.0 : 0.0);
+                    // 任务栏进度（超分模式由 mpv 事件驱动）
+                    Services.TaskbarProgressService.Update(position, duration, !GetIsPlaying());
+                    PipProgressSlider.Maximum = duration;
                     TotalTimeText.Text = FormatTime(duration);
                     SyncPipProgress(position, duration);
                     // 记忆播放位置（续播）：节流保存
@@ -1457,7 +1477,16 @@ namespace SightoHear
             var session = PlayerElement.MediaPlayer.PlaybackSession;
             if (session.NaturalDuration.TotalSeconds > 0)
             {
-                ProgressSlider.Value = session.Position.TotalSeconds;
+                // 平滑进度：只喂真实位置与速率，逐帧外推由 SmoothProgressDriver 负责
+                _smoothProgress?.SetPosition(
+                    session.Position.TotalSeconds,
+                    session.NaturalDuration.TotalSeconds,
+                    session.PlaybackState == MediaPlaybackState.Playing ? 1.0 : 0.0);
+                // 任务栏进度（视频播放器显示时由本页驱动）
+                Services.TaskbarProgressService.Update(
+                    session.Position.TotalSeconds,
+                    session.NaturalDuration.TotalSeconds,
+                    session.PlaybackState != MediaPlaybackState.Playing);
                 CurrentTimeText.Text = FormatTime(session.Position);
                 SyncPipProgress(session.Position.TotalSeconds, session.NaturalDuration.TotalSeconds);
                 // 记忆播放位置（续播）：节流保存
@@ -1471,8 +1500,9 @@ namespace SightoHear
             if (PipControls.Visibility != Visibility.Visible) return;
             if (duration > 0)
             {
+                // 进度值由 _smoothProgress 统一逐帧写入（主进度条与画中画进度条共用），
+                // 这里只负责时长与文本，避免两处同时赋值互相打断平滑外推。
                 PipProgressSlider.Maximum = duration;
-                PipProgressSlider.Value = position;
                 PipTotalTimeText.Text = FormatTime(duration);
             }
             PipCurrentTimeText.Text = FormatTime(position);
@@ -2336,6 +2366,8 @@ namespace SightoHear
         {
             var slider = sender as Slider ?? ProgressSlider;
             SeekCurrent(slider.Value);
+            // 拖动结束：把平滑驱动的基准直接落到目标位置，避免松手瞬间被旧基准拉回
+            _smoothProgress?.SnapTo(slider.Value);
             CurrentTimeText.Text = FormatTime(GetPositionSeconds());
             if (PipControls.Visibility == Visibility.Visible)
                 PipCurrentTimeText.Text = CurrentTimeText.Text;
@@ -2354,6 +2386,7 @@ namespace SightoHear
             {
                 var slider = sender as Slider ?? ProgressSlider;
                 SeekCurrent(slider.Value);
+                _smoothProgress?.SnapTo(slider.Value);
                 CurrentTimeText.Text = FormatTime(GetPositionSeconds());
                 if (PipControls.Visibility == Visibility.Visible)
                     PipCurrentTimeText.Text = CurrentTimeText.Text;

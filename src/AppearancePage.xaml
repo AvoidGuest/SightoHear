@@ -219,6 +219,60 @@
                         Toggled="RememberSetting_Toggled" />
                 </controls:SettingsCard>
 
+                <!-- 窗口居中启动 -->
+                <controls:SettingsCard Header="窗口居中启动" Description="每次启动时把窗口放在屏幕中间；开启后忽略「记住窗口位置」记录的位置">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE9A6;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch
+                        x:Name="CenterWindowOnStartupToggle"
+                        Tag="CenterWindowOnStartup"
+                        MinWidth="0"
+                        OnContent=""
+                        OffContent=""
+                        Toggled="RememberSetting_Toggled" />
+                </controls:SettingsCard>
+
+                <!-- 自定义启动分辨率 -->
+                <controls:SettingsExpander
+                    x:Name="CustomWindowSizeCard"
+                    Header="自定义启动分辨率"
+                    Description="使用固定的窗口尺寸启动；关闭时按「记住窗口大小」或默认比例决定">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon FontFamily="{StaticResource SegoeFluentIconsFontFamily}" Glyph="&#xE740;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch
+                        x:Name="UseCustomWindowSizeToggle"
+                        MinWidth="0"
+                        OnContent=""
+                        OffContent=""
+                        Toggled="UseCustomWindowSizeToggle_Toggled" />
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="宽度（像素）">
+                            <NumberBox
+                                x:Name="CustomWindowWidthBox"
+                                MinWidth="140"
+                                Minimum="640"
+                                Maximum="7680"
+                                SmallChange="10"
+                                LargeChange="100"
+                                SpinButtonPlacementMode="Compact"
+                                ValueChanged="CustomWindowSizeBox_ValueChanged" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard Header="高度（像素）">
+                            <NumberBox
+                                x:Name="CustomWindowHeightBox"
+                                MinWidth="140"
+                                Minimum="480"
+                                Maximum="4320"
+                                SmallChange="10"
+                                LargeChange="100"
+                                SpinButtonPlacementMode="Compact"
+                                ValueChanged="CustomWindowSizeBox_ValueChanged" />
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
                 <!-- 允许应用多开 -->
                 <controls:SettingsCard Header="允许应用多开" Description="开启后可以同时运行多个程序窗口；关闭后重复启动只会把已有窗口带到前台">
                     <controls:SettingsCard.HeaderIcon>

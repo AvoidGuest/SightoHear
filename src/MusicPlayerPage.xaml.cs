@@ -71,6 +71,9 @@ namespace SightoHear
         private readonly Stopwatch _hudDrawSw = new();
         private double _hudLastDrawMs;
         private double _progressSeconds;
+
+        /// <summary>进度条平滑驱动：定时器只提供真实位置，逐帧外推出连续进度。</summary>
+        private Helpers.SmoothProgressDriver? _smoothProgress;
         private CanvasLyricsRenderer _lyricsRenderer = new();
         // ★ 生命周期锁：保护 _lyricsRenderer 的 Dispose（UI 线程 Unloaded）与
         //   Draw（渲染线程回调）互斥，避免退出播放器时渲染线程访问已释放的 TextLayout。
@@ -145,6 +148,14 @@ namespace SightoHear
             };
             _playbackTimer.Tick += PlaybackTimer_Tick;
             ResourceDiagnosticsService.RegisterDispatcherTimer();
+
+            // 进度条平滑：定时器（250ms）只给真实位置，CompositionTarget 每帧外推出连续宽度
+            _smoothProgress = new Helpers.SmoothProgressDriver(value =>
+            {
+                _progressSeconds = value;
+                UpdateProgressVisual();
+            });
+            _smoothProgress.Start();
 
             _controlsHideTimer = new DispatcherTimer
             {
@@ -282,6 +293,9 @@ namespace SightoHear
             StopQueueEqualizerAnimation();
             _playbackTimer.Tick -= PlaybackTimer_Tick;
             _playbackTimer.Stop();
+            // 停掉逐帧进度回调，避免页面卸载后 SmoothProgressDriver 仍被 CompositionTarget 持有
+            _smoothProgress?.Stop();
+            _smoothProgress = null;
             // ★ 修复：停止控制栏隐藏定时器并退订。
             //   运行中的 DispatcherTimer 会持续持有其 Tick 回调（匿名 lambda 捕获 this），
             //   使页面实例在卸载后仍存活一个引用窗口（日志中 MusicPlayerPage"已卸载仍存活"的来源之一）。
@@ -858,10 +872,15 @@ namespace SightoHear
                 return;
 
             _durationSeconds = duration.TotalSeconds > 0 ? duration.TotalSeconds : 1;
-            _progressSeconds = duration.TotalSeconds > 0
-                ? Math.Clamp(position.TotalSeconds, 0, duration.TotalSeconds)
-                : 0;
-            UpdateProgressVisual();
+
+            // 平滑进度：定时器只喂真实位置与速率，逐帧外推由 SmoothProgressDriver 负责。
+            // 播放中速率 = PlaybackSession.PlaybackRate（支持变速），暂停 = 0。
+            bool playing = _playback.PlaybackState == MediaPlaybackState.Playing;
+            double rate = playing ? _playback.Player.PlaybackSession.PlaybackRate : 0.0;
+            _smoothProgress?.SetPosition(
+                duration.TotalSeconds > 0 ? Math.Clamp(position.TotalSeconds, 0, duration.TotalSeconds) : 0,
+                _durationSeconds,
+                rate);
         }
 
         private void UpdatePlaybackIcon()
@@ -1871,6 +1890,22 @@ namespace SightoHear
         {
             var menu = new MenuFlyout();
 
+            // ★ 设置入口已从右下角控制栏移到这里（与视频播放器一致），减少控制栏按钮密度。
+            //   用带图标的 MenuFlyoutItem，保持与原独立按钮一致的 E713（齿轮）辨识度。
+            var settingsItem = new MenuFlyoutItem
+            {
+                Text = "设置",
+                Icon = new FontIcon
+                {
+                    FontFamily = (FontFamily)Application.Current.Resources["SegoeFluentIconsFontFamily"],
+                    Glyph = "\uE713"
+                }
+            };
+            settingsItem.Click += (_, _) => PlayerSettingsButton_Click(this, new RoutedEventArgs());
+            menu.Items.Add(settingsItem);
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+
             var speedMenu = new MenuFlyoutSubItem { Text = "播放速度" };
             foreach (double speed in new[] { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 })
             {
@@ -2181,6 +2216,8 @@ namespace SightoHear
 
             TimeSpan target = TimeSpan.FromSeconds(_progressSeconds);
             PositionText.Text = FormatTime(target);
+            // 拖动时把平滑驱动的基准同步到手指位置，松手后从这里继续外推
+            _smoothProgress?.SnapTo(_progressSeconds);
             UpdateProgressVisual();
             UpdateProgressTooltip(e);
 

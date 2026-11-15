@@ -564,21 +564,6 @@
                             FontSize="16"
                             Foreground="White"/>
                     </Button>
-
-                    <!-- 画中画：点击进入 CompactOverlay 置顶小窗（16:9），可边看视频边做其他事 -->
-                    <Button
-                        x:Name="PictureInPictureButton"
-                        Style="{StaticResource PlayerGhostButtonStyle}"
-                        Click="PictureInPictureButton_Click"
-                        AutomationProperties.Name="画中画"
-                        ToolTipService.ToolTip="画中画">
-                        <FontIcon
-                            x:Name="PictureInPictureIcon"
-                            Glyph="&#xE7FA;"
-                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
-                            FontSize="16"
-                            Foreground="White"/>
-                    </Button>
                 </StackPanel>
 
                 <!-- 中间：播放控制 -->
@@ -661,6 +646,23 @@
                             Foreground="White"
                             Glyph="&#xE8FD;" />
                     </Button>
+
+                    <!-- 画中画：点击进入 CompactOverlay 置顶小窗（16:9），可边看视频边做其他事。
+                         与右侧的全屏同属"窗口形态"类操作，故从左侧移到全屏按钮旁边 -->
+                    <Button
+                        x:Name="PictureInPictureButton"
+                        Style="{StaticResource PlayerGhostButtonStyle}"
+                        Click="PictureInPictureButton_Click"
+                        AutomationProperties.Name="画中画"
+                        ToolTipService.ToolTip="画中画">
+                        <FontIcon
+                            x:Name="PictureInPictureIcon"
+                            Glyph="&#xE7FA;"
+                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
+                            FontSize="16"
+                            Foreground="White"/>
+                    </Button>
+
                     <Button
                         x:Name="FullScreenButton"
                         Style="{StaticResource PlayerGhostButtonStyle}"

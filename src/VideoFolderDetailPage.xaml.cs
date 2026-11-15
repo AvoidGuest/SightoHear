@@ -22,10 +22,47 @@ namespace SightoHear
         private bool _isMultiSelectMode;
         private readonly HashSet<string> _multiSelectedFiles = new(StringComparer.OrdinalIgnoreCase);
 
+        // 响应式布局阈值（与歌曲类详情页保持一致：宽 ≥900、中 600~900、窄 <600）
+        private const double NarrowThreshold = 600.0;
+        private const double MediumThreshold = 900.0;
+
         public VideoFolderDetailPage()
         {
             InitializeComponent();
+            SizeChanged += VideoFolderDetailPage_SizeChanged;
+            Loaded += (_, _) => UpdateLayoutForCurrentWidth();
         }
+
+        private void VideoFolderDetailPage_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateLayoutForCurrentWidth();
+        }
+
+        /// <summary>
+        /// 根据当前窗口宽度在三套顶部布局间切换：
+        /// 宽（≥900）封面 176 + 标题/路径/统计 + 右侧多选与搜索并排；
+        /// 中（600-900）封面 140 + 标题/统计 + 搜索框另起一行；
+        /// 窄（&lt;600）封面 96 缩小 + 统计/路径上下排列 + 搜索框另起一行。
+        /// </summary>
+        private void UpdateLayoutForCurrentWidth()
+        {
+            double width = ActualWidth;
+            if (width <= 0) return;
+
+            bool isNarrow = width < NarrowThreshold;
+            bool isMedium = width >= NarrowThreshold && width < MediumThreshold;
+            bool isWide = width >= MediumThreshold;
+
+            WideHeaderLayout.Visibility = isWide ? Visibility.Visible : Visibility.Collapsed;
+            MediumHeaderLayout.Visibility = isMedium ? Visibility.Visible : Visibility.Collapsed;
+            NarrowHeaderLayout.Visibility = isNarrow ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>当前宽度对应的搜索框（三套布局各有一个，切换时文本需要同步）。</summary>
+        private AutoSuggestBox CurrentSearchBox =>
+            ActualWidth < NarrowThreshold ? NarrowVideoSearchBox
+            : ActualWidth < MediumThreshold ? MediumVideoSearchBox
+            : WideVideoSearchBox;
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
@@ -55,15 +92,30 @@ namespace SightoHear
             string name = !string.IsNullOrEmpty(_folderPath)
                 ? Path.GetFileName(_folderPath)
                 : "文件夹";
-            FolderNameText.Text = name;
-            FolderPathText.Text = _folderPath;
-            FolderStatText.Text = $"{_directVideos.Count} 个视频";
-            PlayButton.IsEnabled = _directVideos.Count > 0;
+            string statText = $"{_directVideos.Count} 个视频";
+            bool hasVideos = _directVideos.Count > 0;
+
+            // 三套布局同时填充：只有当前可见的那套会被用户看到，
+            // 切换宽度时无需重新取数即可立刻显示完整信息。
+            WideFolderNameText.Text = name;
+            WideFolderPathText.Text = _folderPath;
+            WideFolderStatText.Text = statText;
+            WidePlayButton.IsEnabled = hasVideos;
+
+            MediumFolderNameText.Text = name;
+            MediumFolderPathText.Text = _folderPath;
+            MediumFolderStatText.Text = statText;
+            MediumPlayButton.IsEnabled = hasVideos;
+
+            NarrowFolderNameText.Text = name;
+            NarrowFolderPathText.Text = _folderPath;
+            NarrowFolderStatText.Text = statText;
+            NarrowPlayButton.IsEnabled = hasVideos;
         }
 
         private void ApplyFilter()
         {
-            string searchText = VideoSearchBox?.Text?.Trim() ?? string.Empty;
+            string searchText = CurrentSearchBox?.Text?.Trim() ?? string.Empty;
             IEnumerable<MediaItem> query = _directVideos;
 
             if (!string.IsNullOrWhiteSpace(searchText))
@@ -87,7 +139,21 @@ namespace SightoHear
         private void VideoSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
         {
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
+                // 三套布局的搜索框互相同步文本，避免切换宽度后搜索条件"看起来丢了"
+                SyncSearchBoxText(sender.Text ?? string.Empty, sender);
                 ApplyFilter();
+            }
+        }
+
+        /// <summary>把搜索文本同步到其余两套布局的搜索框（跳过事件源自身，避免递归触发）。</summary>
+        private void SyncSearchBoxText(string text, AutoSuggestBox source)
+        {
+            foreach (var box in new[] { WideVideoSearchBox, MediumVideoSearchBox, NarrowVideoSearchBox })
+            {
+                if (!ReferenceEquals(box, source) && box.Text != text)
+                    box.Text = text;
+            }
         }
 
         private void PlayButton_Click(object sender, RoutedEventArgs e)
@@ -162,7 +228,7 @@ namespace SightoHear
             selectItem.Click += (_, _) =>
             {
                 _isMultiSelectMode = true;
-                MultiSelectToggle.IsChecked = true;
+                SetMultiSelectToggles(true);
                 MultiSelectToolbar.Visibility = Visibility.Visible;
                 ToggleItemSelection(item);
             };
@@ -216,7 +282,7 @@ namespace SightoHear
         {
             _isMultiSelectMode = true;
             _multiSelectedFiles.Clear();
-            MultiSelectToggle.IsChecked = true;
+            SetMultiSelectToggles(true);
             MultiSelectToolbar.Visibility = Visibility.Visible;
             UpdateMultiSelectUI();
             UpdateVideoListCheckBoxes();
@@ -226,9 +292,17 @@ namespace SightoHear
         {
             _isMultiSelectMode = false;
             _multiSelectedFiles.Clear();
-            MultiSelectToggle.IsChecked = false;
+            SetMultiSelectToggles(false);
             MultiSelectToolbar.Visibility = Visibility.Collapsed;
             UpdateVideoListCheckBoxes();
+        }
+
+        /// <summary>三套布局各有一个"多选"开关，需同步选中态。</summary>
+        private void SetMultiSelectToggles(bool isChecked)
+        {
+            WideMultiSelectToggle.IsChecked = isChecked;
+            MediumMultiSelectToggle.IsChecked = isChecked;
+            NarrowMultiSelectToggle.IsChecked = isChecked;
         }
 
         private void MultiSelectToggle_Click(object sender, RoutedEventArgs e)

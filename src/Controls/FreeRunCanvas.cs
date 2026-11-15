@@ -35,6 +35,9 @@ namespace SightoHear.Controls
         private volatile bool _running;
         private volatile bool _paused;
         private volatile bool _swapChainReady;
+        // 尺寸/DPI 变化待处理：渲染线程在 Paused 休眠时也要能被唤醒去做一次 ResizeBuffers，
+        // 否则交换链缓冲会一直停在旧尺寸（窗口放大后多出来的区域没有缓冲可用 → 白屏）。
+        private volatile bool _resizePending;
         private readonly object _pauseLock = new();
         // 交换链创建/挂接在 UI 线程执行，渲染线程用此门等待完成（避免在后台线程操作 XAML 面板）
         private readonly ManualResetEventSlim _swapChainGate = new(false);
@@ -163,11 +166,40 @@ namespace SightoHear.Controls
             // 但 CompositionScaleX 属性已是最新值。此处同步可消除高 DPI 下
             // SizeChanged 先于 CompositionScaleChanged 导致的居中偏移竞态。
             _dpiScale = (float)_panel.CompositionScaleX;
+            RequestResize();
         }
 
         private void OnCompositionScaleChanged(Microsoft.UI.Xaml.Controls.SwapChainPanel sender, object args)
         {
             _dpiScale = (float)_panel.CompositionScaleX;
+            RequestResize();
+        }
+
+        /// <summary>
+        /// 标记"尺寸/DPI 已变化，需要重设交换链缓冲"，并唤醒可能处于 Paused 休眠的渲染线程。
+        /// </summary>
+        /// <remarks>
+        /// ★ 这是"图片查看器窗口模式最大化后右侧/下方白屏"的根因修复。
+        /// <para>
+        /// 渲染循环在空闲时会把 <see cref="Paused"/> 置 true 休眠（见 CanvasDisplayController
+        /// 的 Update：无动画且队列为空即暂停）。此时用户拖动窗口边缘或点最大化，
+        /// <see cref="OnPanelSizeChanged"/> 只更新了 <c>_dipSize</c>，而真正执行
+        /// ResizeBuffers 的 <see cref="HandleResizeIfNeeded"/> 在被暂停的渲染线程里根本不会跑。
+        /// 结果：交换链缓冲停在旧尺寸，XAML 把这块旧尺寸的缓冲按新尺寸铺开，
+        /// 多出来的区域没有任何缓冲内容 → 显示为纯白。
+        /// </para>
+        /// <para>
+        /// 修复：置位 <c>_resizePending</c> 并唤醒渲染线程跑一帧，由该帧完成 ResizeBuffers；
+        /// 之后 Update 发现无动画、队列空，会自行重新暂停，省电策略不变。
+        /// 唤醒与置位都用同一把 <c>_pauseLock</c> 保护，与循环里的等待条件配合，
+        /// 不会出现"先暂停、后置位却没人唤醒"的丢唤醒。
+        /// </para>
+        /// </remarks>
+        private void RequestResize()
+        {
+            _resizePending = true;
+            lock (_pauseLock)
+                Monitor.PulseAll(_pauseLock);
         }
 
         // ── 生命周期 ──
@@ -225,11 +257,13 @@ namespace SightoHear.Controls
                 while (_running)
                 {
                     // 暂停：休眠等待唤醒（避免 busy-wait 空转 CPU）
-                    if (_paused)
+                    if (_paused && !_resizePending)
                     {
                         lock (_pauseLock)
                         {
-                            while (_running && _paused)
+                            // 条件里带上 _resizePending：若在进入等待前尺寸已变化（RequestResize 先
+                            // 置位后唤醒），这里直接跳过等待去处理，不会丢唤醒。
+                            while (_running && _paused && !_resizePending)
                                 Monitor.Wait(_pauseLock);
                         }
                         if (!_running) break;
@@ -370,7 +404,14 @@ namespace SightoHear.Controls
         {
             var sc = _swapChain;
             if (sc == null || _dipSize.Width <= 0 || _dipSize.Height <= 0)
+            {
+                // 交换链尚未创建/已释放：这里也要清掉待处理标记。
+                // 否则渲染循环会因 _resizePending 一直为真而跳过 Paused 休眠，
+                // 变成 5ms 一轮的忙等；而交换链稍后创建时本身就是按最新 _dipSize 建的，
+                // 不需要再补一次 Resize。
+                _resizePending = false;
                 return;
+            }
 
             // 尺寸（DIP）或 DPI 任一变化时重设缓冲；ResizeBuffers 尺寸以 DIP 为单位，
             // 3 参数重载可同时更新 DPI，避免仅靠 SizeInPixels 比较时漏掉 DPI 变化
@@ -380,6 +421,7 @@ namespace SightoHear.Controls
             {
                 sc.ResizeBuffers((float)_dipSize.Width, (float)_dipSize.Height, Dpi);
             }
+            _resizePending = false;
         }
 
         /// <summary>

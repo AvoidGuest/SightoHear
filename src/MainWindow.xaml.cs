@@ -58,6 +58,9 @@ namespace SightoHear
         private readonly DispatcherTimer _miniPlayerTimer;
         private readonly MusicPlaybackService _playback = App.MusicPlayback;
         private bool _updatingProgress;
+
+        /// <summary>迷你播放器进度条平滑驱动（懒创建，随窗口生命周期存在）。</summary>
+        private Helpers.SmoothProgressDriver? _miniSmoothProgress;
         private bool _updatingVolume;
         private bool _isMiniPlayerManuallyHidden;
         private DateTime _lastMiniPlayerPositionLogTime = DateTime.MinValue;
@@ -235,6 +238,16 @@ namespace SightoHear
             SetupWindow();
             AppLogger.Info($"[MainWindow.ctor] SetupWindow 完成 ({ctorSw.ElapsedMilliseconds}ms)");
 
+            // 任务栏播放进度：绑定主窗口句柄（失败仅记录日志，不影响启动）
+            try
+            {
+                Services.TaskbarProgressService.Initialize(WinRT.Interop.WindowNative.GetWindowHandle(this));
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warning($"[MainWindow] 初始化任务栏进度失败: {ex.Message}");
+            }
+
             ctorSw.Restart();
             if (MainNavigationView.SettingsItem is NavigationViewItem settingsItem)
             {
@@ -258,6 +271,9 @@ namespace SightoHear
             {
                 _isClosed = true;
                 CancelPlayerCleanup();
+                _miniSmoothProgress?.Stop();
+                _miniSmoothProgress = null;
+                Services.TaskbarProgressService.Shutdown();
                 Win2DPerformanceHud.Changed -= OnWin2DHudChanged;
                 _hudTimer?.Stop();
                 _diagnosticsTimer?.Stop();
@@ -354,10 +370,20 @@ namespace SightoHear
         {
             _appWindow = GetAppWindowForCurrentWindow();
 
-            // 设置窗口大小为工作区面积的 25%（16:10 比例）
+            // 窗口尺寸优先级：
+            //   ① 自定义启动分辨率（显式设置，最高优先级）
+            //   ② 记住窗口大小（上次关闭时的尺寸）
+            //   ③ 默认：工作区面积的 25%（16:10）
             int w;
             int h;
-            if (App.SettingsHelper.RememberWindowSize &&
+            if (App.SettingsHelper.UseCustomWindowSize &&
+                App.SettingsHelper.CustomWindowWidth >= 640 &&
+                App.SettingsHelper.CustomWindowHeight >= 480)
+            {
+                w = App.SettingsHelper.CustomWindowWidth;
+                h = App.SettingsHelper.CustomWindowHeight;
+            }
+            else if (App.SettingsHelper.RememberWindowSize &&
                 App.SettingsHelper.WindowWidth >= 640 &&
                 App.SettingsHelper.WindowHeight >= 480)
             {
@@ -377,9 +403,15 @@ namespace SightoHear
             if (h > primaryArea.Height) h = (int)(primaryArea.Height * 0.85);
             _appWindow.Resize(new Windows.Graphics.SizeInt32 { Width = w, Height = h });
 
-            // 校验已保存的窗口位置是否在当前可用显示器的工作区内
-            // （如果上次退出时使用外接显示器，拔掉后坐标会指向屏幕外 → 窗口不可见但任务栏有图标）
-            if (App.SettingsHelper.RememberWindowPosition &&
+            // 窗口位置：
+            //   ① 「窗口居中启动」开启 → 直接在主轴显示器工作区居中（忽略记住的位置）
+            //   ② 否则恢复记住的位置
+            //   ③ 都没有 → 同样居中（避免默认贴在左上角）
+            if (App.SettingsHelper.CenterWindowOnStartup)
+            {
+                CenterWindowOnWorkArea(w, h);
+            }
+            else if (App.SettingsHelper.RememberWindowPosition &&
                 App.SettingsHelper.HasWindowPosition)
             {
                 var savedPos = new Windows.Graphics.PointInt32
@@ -391,7 +423,14 @@ namespace SightoHear
                 if (inAnyDisplay)
                     _appWindow.Move(savedPos);
                 else
+                {
                     App.SettingsHelper.RememberWindowPosition = false;
+                    CenterWindowOnWorkArea(w, h);
+                }
+            }
+            else
+            {
+                CenterWindowOnWorkArea(w, h);
             }
             _appWindow.Closing += AppWindow_Closing;
             SetWindowSubclass(
@@ -430,6 +469,30 @@ namespace SightoHear
                 var primary = DisplayArea.Primary.WorkArea;
                 return pt.X + 100 > primary.X && pt.X < primary.X + primary.Width - 100 &&
                        pt.Y + 100 > primary.Y && pt.Y < primary.Y + primary.Height - 100;
+            }
+        }
+
+        /// <summary>
+        /// 把窗口在主显示器工作区内居中摆放（「窗口居中启动」或没有可恢复位置时使用）。
+        /// </summary>
+        /// <param name="w">窗口宽度（像素）。</param>
+        /// <param name="h">窗口高度（像素）。</param>
+        private void CenterWindowOnWorkArea(int w, int h)
+        {
+            try
+            {
+                var workArea = DisplayArea.Primary.WorkArea;
+                int x = workArea.X + (workArea.Width - w) / 2;
+                int y = workArea.Y + (workArea.Height - h) / 2;
+                // 防止计算出的坐标落到工作区外（极小屏或缩放异常时）
+                if (x < workArea.X) x = workArea.X;
+                if (y < workArea.Y) y = workArea.Y;
+                _appWindow.Move(new Windows.Graphics.PointInt32 { X = x, Y = y });
+            }
+            catch (Exception ex)
+            {
+                // 居中失败不影响启动，仅记录日志（窗口停在系统默认位置）
+                Helpers.AppLogger.Warning($"[MainWindow] 窗口居中失败: {ex.Message}");
             }
         }
 
@@ -1200,7 +1263,11 @@ namespace SightoHear
                 if (ContentFrame.Content?.GetType() != typeof(SettingsPage))
                 {
                     AppLogger.Info("主窗口导航: 设置页面");
-                    ContentFrame.Navigate(typeof(SettingsPage), null, new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight });
+                    // ★ 进入设置主页不做"从右向左滑入"：设置页与主页/视频/音乐/图库同级，
+                    //   统一使用 SuppressNavigationTransitionInfo（切换即出现），
+                    //   页内卡片仍由 SettingsHomePage 的 EntranceThemeTransition 做上浮淡入。
+                    //   设置页内部的子页面导航（设置首页 → 基础/视频/…）仍保留 FromRight 滑入。
+                    ContentFrame.Navigate(typeof(SettingsPage), null, new SuppressNavigationTransitionInfo());
                 }
                 return;
             }
@@ -2311,8 +2378,11 @@ namespace SightoHear
                 return;
 
             AppLogger.Info($"[导航] 跳转到设置页{(targetSubPage != null ? "（直达 " + targetSubPage.Name + "）" : string.Empty)}");
+            // 与侧边栏点「设置」一致：进入设置页本身不滑入，只有设置页内部的子页面导航才滑入
             ContentFrame.Navigate(typeof(SettingsPage), targetSubPage,
-                new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight });
+                targetSubPage == null
+                    ? new SuppressNavigationTransitionInfo()
+                    : new SlideNavigationTransitionInfo() { Effect = SlideNavigationTransitionEffect.FromRight });
         }
 
         private void AnimateOverlaySlideOut()
@@ -3544,6 +3614,8 @@ namespace SightoHear
             if (MiniPositionText != null)
                 MiniPositionText.Text = FormatTime(TimeSpan.FromSeconds(e.NewValue));
             _playback.SetPosition(TimeSpan.FromSeconds(e.NewValue));
+            // 用户拖动：把平滑基准同步到目标位置，避免松手后被旧基准拉回
+            _miniSmoothProgress?.SnapTo(e.NewValue);
         }
 
         private void MiniPlayerProgressSlider_PointerMoved(object sender, PointerRoutedEventArgs e)
@@ -3578,14 +3650,40 @@ namespace SightoHear
                 return;
             }
 
-            _updatingProgress = true;
             PlaybackProgressSlider.Maximum = duration.TotalSeconds;
             var position = _playback.Position.TotalSeconds;
             var clampedPosition = Math.Clamp(position, 0, duration.TotalSeconds);
-            PlaybackProgressSlider.Value = clampedPosition;
+
+            // 平滑进度：定时器只喂真实位置与速率，逐帧外推交给 SmoothProgressDriver
+            if (_miniSmoothProgress == null)
+            {
+                _miniSmoothProgress = new Helpers.SmoothProgressDriver(value =>
+                {
+                    _updatingProgress = true;
+                    PlaybackProgressSlider.Value = value;
+                    _updatingProgress = false;
+                });
+                _miniSmoothProgress.Start();
+            }
+            _miniSmoothProgress.SetPosition(
+                clampedPosition,
+                duration.TotalSeconds,
+                _playback.PlaybackState == MediaPlaybackState.Playing
+                    ? _playback.Player.PlaybackSession.PlaybackRate
+                    : 0.0);
+
             MiniPositionText.Text = FormatTime(_playback.Position);
             MiniDurationText.Text = FormatTime(duration);
-            _updatingProgress = false;
+
+            // 任务栏进度：音乐播放由这里驱动；视频播放器显示时交给它自己的定时器，
+            // 避免两个来源同时写任务栏进度导致来回跳。
+            if (!(_isPlayerOverlayActive && PlayerFrame.Content is VideoPlayerPage))
+            {
+                Services.TaskbarProgressService.Update(
+                    clampedPosition,
+                    duration.TotalSeconds,
+                    _playback.PlaybackState != MediaPlaybackState.Playing);
+            }
 
             // 每 2 秒记录一次迷你播放器进度
             if (_playback.PlaybackState == MediaPlaybackState.Playing)

@@ -261,13 +261,47 @@ namespace SightoHear
             }
         }
 
-        /// <summary>加载「窗口 / 交互」分区的 4 个开关。</summary>
+        /// <summary>加载「窗口 / 交互」分区的开关与自定义分辨率。</summary>
         private void LoadRememberSettings()
         {
             RememberWindowSizeToggle.IsOn = App.SettingsHelper.RememberWindowSize;
             RememberWindowPositionToggle.IsOn = App.SettingsHelper.RememberWindowPosition;
+            CenterWindowOnStartupToggle.IsOn = App.SettingsHelper.CenterWindowOnStartup;
             AllowMultiInstanceToggle.IsOn = App.SettingsHelper.AllowMultiInstance;
             ConfirmDialogReverseToggle.IsOn = App.SettingsHelper.ConfirmDialogReverse;
+
+            UseCustomWindowSizeToggle.IsOn = App.SettingsHelper.UseCustomWindowSize;
+            CustomWindowWidthBox.Value = App.SettingsHelper.CustomWindowWidth > 0
+                ? App.SettingsHelper.CustomWindowWidth
+                : 1280;
+            CustomWindowHeightBox.Value = App.SettingsHelper.CustomWindowHeight > 0
+                ? App.SettingsHelper.CustomWindowHeight
+                : 800;
+            CustomWindowSizeCard.IsExpanded = App.SettingsHelper.UseCustomWindowSize;
+        }
+
+        /// <summary>自定义启动分辨率开关：开启后展开宽高输入。</summary>
+        private void UseCustomWindowSizeToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings) return;
+
+            bool enabled = UseCustomWindowSizeToggle.IsOn;
+            App.SettingsHelper.UseCustomWindowSize = enabled;
+            CustomWindowSizeCard.IsExpanded = enabled;
+            App.SettingsHelper.Save();
+        }
+
+        /// <summary>自定义启动分辨率数值变更：写回设置（数据已由 NumberBox 的 Min/Max 约束）。</summary>
+        private void CustomWindowSizeBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+        {
+            if (_isLoadingSettings) return;
+            if (double.IsNaN(args.NewValue)) return;
+
+            int width = (int)Math.Round(CustomWindowWidthBox.Value is double dw && !double.IsNaN(dw) ? dw : 1280);
+            int height = (int)Math.Round(CustomWindowHeightBox.Value is double dh && !double.IsNaN(dh) ? dh : 800);
+            App.SettingsHelper.CustomWindowWidth = width;
+            App.SettingsHelper.CustomWindowHeight = height;
+            App.SettingsHelper.Save();
         }
 
         /// <summary>
@@ -288,6 +322,9 @@ namespace SightoHear
                     break;
                 case "RememberWindowPosition":
                     App.SettingsHelper.RememberWindowPosition = value;
+                    break;
+                case "CenterWindowOnStartup":
+                    App.SettingsHelper.CenterWindowOnStartup = value;
                     break;
                 case "AllowMultiInstance":
                     App.SettingsHelper.AllowMultiInstance = value;

@@ -42,6 +42,51 @@ namespace SightoHear
         public VideoFavoriteDetailPage()
         {
             InitializeComponent();
+            SizeChanged += VideoFavoriteDetailPage_SizeChanged;
+            Loaded += (_, _) => UpdateLayoutForCurrentWidth();
+        }
+
+        // 响应式布局阈值（与其他详情页保持一致：宽 ≥900、中 600~900、窄 <600）
+        private const double NarrowThreshold = 600.0;
+        private const double MediumThreshold = 900.0;
+
+        private void VideoFavoriteDetailPage_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateLayoutForCurrentWidth();
+        }
+
+        /// <summary>
+        /// 根据当前窗口宽度在三套顶部布局间切换：
+        /// 宽（≥900）封面 176 + 标题/描述 + 右下角操作按钮与搜索并排；
+        /// 中（600-900）封面 140 + 标题/统计 + 按钮换行 + 搜索框另起一行；
+        /// 窄（&lt;600）封面 96 + 统计上下排列 + 按钮收起为图标 + 搜索框另起一行。
+        /// </summary>
+        private void UpdateLayoutForCurrentWidth()
+        {
+            double width = ActualWidth;
+            if (width <= 0) return;
+
+            bool isNarrow = width < NarrowThreshold;
+            bool isMedium = width >= NarrowThreshold && width < MediumThreshold;
+            bool isWide = width >= MediumThreshold;
+
+            WideHeaderLayout.Visibility = isWide ? Visibility.Visible : Visibility.Collapsed;
+            MediumHeaderLayout.Visibility = isMedium ? Visibility.Visible : Visibility.Collapsed;
+            NarrowHeaderLayout.Visibility = isNarrow ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>当前宽度对应的搜索框（三套布局各有一个）。</summary>
+        private AutoSuggestBox CurrentSearchBox =>
+            ActualWidth < NarrowThreshold ? NarrowVideoSearchBox
+            : ActualWidth < MediumThreshold ? MediumVideoSearchBox
+            : WideVideoSearchBox;
+
+        /// <summary>三套布局各有一个"多选"开关，需同步选中态。</summary>
+        private void SetMultiSelectToggles(bool isChecked)
+        {
+            WideMultiSelectToggle.IsChecked = isChecked;
+            MediumMultiSelectToggle.IsChecked = isChecked;
+            NarrowMultiSelectToggle.IsChecked = isChecked;
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -62,18 +107,32 @@ namespace SightoHear
         {
             string name = _favorite?.Name ?? "收藏夹";
             int count = _favorite?.Items.Count ?? 0;
-
-            FavoriteNameText.Text = name;
-            CreatedTimeText.Text = _favorite == null
+            string createdText = _favorite == null
                 ? string.Empty
                 : $"创建于 {_favorite.DateCreated:yyyy/M/d}";
-            VideoCountText.Text = $"{count} 个视频";
-            PlayButton.IsEnabled = count > 0;
+            string countText = $"{count} 个视频";
+            string description = !string.IsNullOrWhiteSpace(_favorite?.Description)
+                ? _favorite!.Description
+                : "暂无描述";
 
-            if (!string.IsNullOrWhiteSpace(_favorite?.Description))
-                FavoriteDescriptionText.Text = _favorite.Description;
-            else
-                FavoriteDescriptionText.Text = "暂无描述";
+            // 三套布局同时填充：只有当前可见的那套会被看到，切换宽度时无需重新取数。
+            WideFavoriteNameText.Text = name;
+            WideCreatedTimeText.Text = createdText;
+            WideVideoCountText.Text = countText;
+            WideFavoriteDescriptionText.Text = description;
+            WidePlayButton.IsEnabled = count > 0;
+
+            MediumFavoriteNameText.Text = name;
+            MediumCreatedTimeText.Text = createdText;
+            MediumVideoCountText.Text = countText;
+            MediumFavoriteDescriptionText.Text = description;
+            MediumPlayButton.IsEnabled = count > 0;
+
+            NarrowFavoriteNameText.Text = name;
+            NarrowCreatedTimeText.Text = createdText;
+            NarrowVideoCountText.Text = countText;
+            NarrowFavoriteDescriptionText.Text = description;
+            NarrowPlayButton.IsEnabled = count > 0;
 
             // 加载封面图片（优先自定义封面，回退到最后一个视频的缩略图）
             string coverPath = _favorite?.CoverPath ?? string.Empty;
@@ -92,26 +151,36 @@ namespace SightoHear
                     byte[] imgBytes = await File.ReadAllBytesAsync(coverPath);
                     using var mem = new MemoryStream(imgBytes, writable: false);
                     await bitmap.SetSourceAsync(mem.AsRandomAccessStream());
-                    CoverImage.Source = bitmap;
-                    CoverImage.Visibility = Visibility.Visible;
-                    CoverPlaceholderIcon.Visibility = Visibility.Collapsed;
+                    ApplyCover(bitmap, hasCover: true);
                 }
                 catch
                 {
-                    CoverImage.Visibility = Visibility.Collapsed;
-                    CoverPlaceholderIcon.Visibility = Visibility.Visible;
+                    ApplyCover(null, hasCover: false);
                 }
             }
             else
             {
-                CoverImage.Visibility = Visibility.Collapsed;
-                CoverPlaceholderIcon.Visibility = Visibility.Visible;
+                ApplyCover(null, hasCover: false);
+            }
+        }
+
+        /// <summary>把封面位图同时应用到三套布局的封面控件（含占位图标显隐）。</summary>
+        private void ApplyCover(BitmapImage? bitmap, bool hasCover)
+        {
+            var images = new[] { WideCoverImage, MediumCoverImage, NarrowCoverImage };
+            var placeholders = new[] { WideCoverPlaceholderIcon, MediumCoverPlaceholderIcon, NarrowCoverPlaceholderIcon };
+
+            for (int i = 0; i < images.Length; i++)
+            {
+                images[i].Source = bitmap;
+                images[i].Visibility = hasCover ? Visibility.Visible : Visibility.Collapsed;
+                placeholders[i].Visibility = hasCover ? Visibility.Collapsed : Visibility.Visible;
             }
         }
 
         private void ApplyFilter()
         {
-            string searchText = VideoSearchBox?.Text?.Trim() ?? string.Empty;
+            string searchText = CurrentSearchBox?.Text?.Trim() ?? string.Empty;
             IEnumerable<MediaItem> query = _favorite?.Items ?? new List<MediaItem>();
 
             if (!string.IsNullOrWhiteSpace(searchText))
@@ -138,7 +207,20 @@ namespace SightoHear
         private void VideoSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
         {
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
+                SyncSearchBoxText(sender.Text ?? string.Empty, sender);
                 ApplyFilter();
+            }
+        }
+
+        /// <summary>把搜索文本同步到其余两套布局的搜索框（跳过事件源自身，避免递归触发）。</summary>
+        private void SyncSearchBoxText(string text, AutoSuggestBox source)
+        {
+            foreach (var box in new[] { WideVideoSearchBox, MediumVideoSearchBox, NarrowVideoSearchBox })
+            {
+                if (!ReferenceEquals(box, source) && box.Text != text)
+                    box.Text = text;
+            }
         }
 
         private void PlayButton_Click(object sender, RoutedEventArgs e)
@@ -213,7 +295,7 @@ namespace SightoHear
             selectItem.Click += (_, _) =>
             {
                 _isMultiSelectMode = true;
-                MultiSelectToggle.IsChecked = true;
+                SetMultiSelectToggles(true);
                 MultiSelectToolbar.Visibility = Visibility.Visible;
                 ToggleItemSelection(item);
             };
@@ -267,7 +349,7 @@ namespace SightoHear
         {
             _isMultiSelectMode = true;
             _multiSelectedFiles.Clear();
-            MultiSelectToggle.IsChecked = true;
+            SetMultiSelectToggles(true);
             MultiSelectToolbar.Visibility = Visibility.Visible;
             UpdateMultiSelectUI();
             UpdateVideoListCheckBoxes();
@@ -277,7 +359,7 @@ namespace SightoHear
         {
             _isMultiSelectMode = false;
             _multiSelectedFiles.Clear();
-            MultiSelectToggle.IsChecked = false;
+            SetMultiSelectToggles(false);
             MultiSelectToolbar.Visibility = Visibility.Collapsed;
             UpdateVideoListCheckBoxes();
         }

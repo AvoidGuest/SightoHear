@@ -250,6 +250,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -264,18 +265,20 @@
                         FontWeight="SemiBold"
                         MaxLines="2"
                         TextTrimming="CharacterEllipsis" />
+                    <!-- ★ 独立一行：原先与歌手名同在 Row 0 底部对齐，两者会叠在一起显示成"垂直挤到一起" -->
                     <TextBlock
                         x:Name="MediumArtistStatText"
-                        Grid.Row="0"
+                        Grid.Row="1"
                         Grid.Column="0"
-                        VerticalAlignment="Bottom"
                         Margin="0,2,0,0"
                         FontSize="12"
+                        TextWrapping="NoWrap"
+                        TextTrimming="CharacterEllipsis"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
                     <!-- 播放全部 + 操作按钮 -->
                     <StackPanel
-                        Grid.Row="1"
+                        Grid.Row="2"
                         Grid.ColumnSpan="2"
                         Orientation="Horizontal"
                         Spacing="8"
@@ -362,6 +365,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -376,18 +380,20 @@
                         FontWeight="SemiBold"
                         MaxLines="2"
                         TextTrimming="CharacterEllipsis" />
+                    <!-- ★ 独立一行：与中等布局同样修复"标题与统计文字叠在一起"的问题 -->
                     <TextBlock
                         x:Name="NarrowArtistStatText"
-                        Grid.Row="0"
+                        Grid.Row="1"
                         Grid.Column="0"
-                        VerticalAlignment="Bottom"
                         Margin="0,2,0,0"
                         FontSize="12"
+                        TextWrapping="NoWrap"
+                        TextTrimming="CharacterEllipsis"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
                     <!-- 播放全部 + 操作按钮 -->
                     <StackPanel
-                        Grid.Row="1"
+                        Grid.Row="2"
                         Grid.ColumnSpan="2"
                         Orientation="Horizontal"
                         Spacing="8"

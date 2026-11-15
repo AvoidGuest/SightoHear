@@ -521,16 +521,7 @@
                             FontSize="15"
                             Glyph="&#xE767;" />
                     </Button>
-                    <Button
-                        x:Name="PlayerSettingsButton"
-                        Click="PlayerSettingsButton_Click"
-                        Style="{StaticResource PlayerGhostButtonStyle}"
-                        ToolTipService.ToolTip="设置">
-                        <FontIcon
-                            FontFamily="{StaticResource SegoeFluentIconsFontFamily}"
-                            FontSize="15"
-                            Glyph="&#xE713;" />
-                    </Button>
+                    <!-- 设置入口已移入「更多」菜单（与视频播放器一致），控制栏不再单独占一个按钮 -->
                     <Button
                         x:Name="MoreButton"
                         Click="MoreButton_Click"

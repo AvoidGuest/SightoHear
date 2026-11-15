@@ -315,6 +315,16 @@ namespace SightoHear
             public static bool HasWindowPosition { get; set; }
             public static int WindowX { get; set; }
             public static int WindowY { get; set; }
+
+            /// <summary>启动时把窗口居中（忽略记住的位置）。</summary>
+            public static bool CenterWindowOnStartup { get; set; }
+
+            /// <summary>使用自定义启动分辨率（宽高同时 &gt;= 最小阈值时生效）。</summary>
+            public static bool UseCustomWindowSize { get; set; }
+
+            /// <summary>自定义启动分辨率（像素）。</summary>
+            public static int CustomWindowWidth { get; set; } = 1280;
+            public static int CustomWindowHeight { get; set; } = 800;
             public static bool AllowMultiInstance { get; set; } = true;
             public static bool ConfirmDialogReverse { get; set; }
             public static bool MusicRefreshOnStartup { get; set; } = true;
@@ -462,6 +472,14 @@ namespace SightoHear
                         WindowX = x.GetInt32();
                     if (root.TryGetProperty("WindowY", out var y))
                         WindowY = y.GetInt32();
+                    if (root.TryGetProperty("CenterWindowOnStartup", out var centerWindow))
+                        CenterWindowOnStartup = centerWindow.GetBoolean();
+                    if (root.TryGetProperty("UseCustomWindowSize", out var useCustomSize))
+                        UseCustomWindowSize = useCustomSize.GetBoolean();
+                    if (root.TryGetProperty("CustomWindowWidth", out var customW))
+                        CustomWindowWidth = customW.GetInt32();
+                    if (root.TryGetProperty("CustomWindowHeight", out var customH))
+                        CustomWindowHeight = customH.GetInt32();
                     if (root.TryGetProperty("AllowMultiInstance", out var allowMulti))
                         AllowMultiInstance = allowMulti.GetBoolean();
                     if (root.TryGetProperty("ConfirmDialogReverse", out var confirmReverse))
@@ -678,6 +696,10 @@ namespace SightoHear
                     node["HasWindowPosition"] = HasWindowPosition;
                     node["WindowX"] = WindowX;
                     node["WindowY"] = WindowY;
+                    node["CenterWindowOnStartup"] = CenterWindowOnStartup;
+                    node["UseCustomWindowSize"] = UseCustomWindowSize;
+                    node["CustomWindowWidth"] = CustomWindowWidth;
+                    node["CustomWindowHeight"] = CustomWindowHeight;
                     node["AllowMultiInstance"] = AllowMultiInstance;
                     node["ConfirmDialogReverse"] = ConfirmDialogReverse;
                     node["MusicRefreshOnStartup"] = MusicRefreshOnStartup;
