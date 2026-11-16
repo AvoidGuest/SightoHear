@@ -81,7 +81,7 @@ SightoHear 是一款面向 Windows 10 20H1+ 与 Windows 11 的原生桌面应用
 
 SightoHear 由以下开源框架与库驱动：
 
-- **C# / .NET 8**：核心语言与运行时。
+- **C# / .NET 10**：核心语言与运行时。
 - **WinUI 3 / Windows App SDK**：原生 Fluent 界面框架。
 - **CommunityToolkit for WinUI**：LinedFlow、SettingsCard 等扩展控件。
 - **Win2D**：高性能 2D 渲染（图片查看器、歌词、背景特效）。
